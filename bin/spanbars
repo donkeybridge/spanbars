@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+
+
+require './lib/spanbar.rb'
+require './lib/spanbarprocessor.rb'
+require 'slop'
+require 'csv'
+require 'json'
+require 'outputhandler'
+
+Signal.trap("TERM") { local_interrupt }
+Signal.trap("INT")  { local_interrupt }
+
+opts = Slop.parse do |o|
+  o.string  '--config'   , "Load configuration file in yaml format"
+  o.bool    '--simple'   , "Disable processing of strict StanBars", default: false
+  o.float   '--ticksize' , "Set ticksize for processing",           default: 1.0
+  o.integer '--span'     , "Set span for processing",          default: 5
+end
+
+$o = OutputHandler.new
+$s = SpanBarProcessor.new(span: opts[:span],ticksize: opts[:ticksize], simple: opts[:simple])
+
+def local_interrupt
+  $o.puts! "Caught signal, leaving...",true
+  exit
+end
+
+unless STDIN.tty? 
+  while foo = STDIN.gets
+    line = CSV.parse(foo.chomp).flatten
+    bar = $s.add(line[0].to_i, line[1].to_f)
+    if bar and not opts[:simple] 
+      bar.each {|b| puts b.to_human} 
+    elsif bar
+      puts bar.inspect 
+    end
+  end
+  exit
+end
