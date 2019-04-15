@@ -1,24 +1,39 @@
 #!/usr/bin/env ruby
 
 THIS_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
-#require File.dirname(THIS_FILE) + '/../lib/spanbarprocessor.rb'
-require './lib/spanbarprocessor.rb'
+require File.dirname(THIS_FILE) + '/../lib/spanbarprocessor.rb'
 
+
+# prepare processing of incoming control commands (e.g. Ctrl-C)
 Signal.trap("TERM") { local_interrupt }
 Signal.trap("INT")  { local_interrupt }
 
+def local_interrupt
+  exit
+end
+
+# prepare command line parser and help text
+
 op = Slop::Options.new
+op.banner = "Usage: spanbars [options]"
+op.separator "" 
 op.bool    '--simple'   , "Disable processing of strict StanBars", default: false
 op.float   '--ticksize' , "Set ticksize for processing",           default: 1.0
 op.integer '--span'     , "Set span for processing",               default: 10
-op.boolean '--ohlc'     , "Define OHLC input instead of timeseries", default: false
+op.boolean  '--ohlc'     , "Define OHLC input file instead of timeseries (overrides --simple and --both)", default: false
 op.boolean '--human'    , "Define human output",                   default: false
-op.boolean '--intraday' , "Strip date portion (affects --human only", default: false
+op.boolean '--intraday' , "Strip date portion (affects --human only)", default: false
 op.boolean '--help'     , "Print this help", default: false
 op.boolean '--both'     , "Returns both simple and strict bars (overrides simple)",   default: false
+op.separator "" 
+op.separator "   NOTE: spanbars relies on either STDIN data when working with a timeserie or"
+op.separator "         or on an input file, when working with OHLCs"
+op.separator "   $ cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1"
+op.separator ""
 
 optparser = Slop::Parser.new(op)
 
+# print help upon unparsable commandline options
 begin
   opts = optparser.parse(ARGV)
 rescue StandardError => e
@@ -32,25 +47,51 @@ if opts.help?
   exit
 end
 
-o = OutputHandler.new
-s = SpanBarProcessor.new(opts)
-
-def local_interrupt
-  o.puts! "Caught signal, leaving...",true
-  exit
-end
-
 unless STDIN.tty? 
-  while csv = STDIN.gets
-    line   = CSV.parse(csv.chomp).flatten
-    result = s.add(line[0].to_i, line[1].to_f)
-    if result
-      if opts[:human] 
-        result.each {|r| r.set_intraday if opts[:intraday]; puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red } 
-      else # CSV output
-        result.each {|r| CSV {|out| out << r.to_a  } }
+  unless opts.ohlc?
+    s = SpanBarProcessor.new(opts)
+    while csv = STDIN.gets
+      line   = CSV.parse(csv.chomp).flatten
+      result = s.add(line[0].to_i, line[1].to_f)
+      if result
+        if opts[:human] 
+          result.each {|r| r.set_intraday if opts[:intraday]; puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red } 
+        else # CSV output
+          result.each {|r| CSV {|out| out << r.to_a  } }
+        end
       end
     end
+    exit
+  else # if ohlc is given
+    data = [ ] 
+    data << CSV.parse(csv.chomp).flatten while csv = STDIN.gets
+    opts = opts.to_hash
+    opts.delete(:simple)
+    opts.delete(:both)
+    highOpts = opts.dup
+    highOpts[:span] = (opts[:span] / 2.0).floor.to_i
+    highProc = SpanBarProcessor.new(highOpts)
+    lowProc  = SpanBarProcessor.new(highOpts)
+    finProc  = SpanBarProcessor.new(opts)
+    data.each do |d| 
+      highProc.add(d[0].to_i, d[2].to_f)
+      lowProc. add(d[0].to_i, d[3].to_f)
+    end
+    res = highProc.spanBars.map{|bar| bar.type == :up ? bar.highval : bar.lowval } #.map{|peak| bar.highval }
+    res.flatten!
+    res.sort!{|a,b| a[:t] <=> b[:t]}
+    res.each {|peak| finProc.add peak[:t],peak[:p]}
+    if opts[:human]
+      finProc.spanBars.each {|r| r.set_intraday if opts[:intraday]; puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red }
+    else # CSV output
+      finProc.spanBars.each {|r| CSV {|out| out << r.to_a  } }
+    end
   end
-  exit
+else
+  puts op.to_s
 end
+
+
+
+
+

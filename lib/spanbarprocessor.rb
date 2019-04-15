@@ -1,25 +1,36 @@
-require './lib/spanbar.rb'
+require '../lib/spanbar.rb'
 require 'slop'
 require 'csv'
-require 'json'
 require 'colorize'
-require 'outputhandler'
 
 
+# SpanBarHelpers includes some little helpers for convenient usage in SpanBarProcessor
 module SpanBarHelpers
 
+  # creates a new upfollowing tick that has a minimum higher value than the preceeding one
+  #
+  # @param a [Float]
+  # @param t [Integer]
   def tickup(a,t=1)
     { p: a[:p] + 0.000000001, t: a[:t] + t }
   end
 
+  # creates a new upfollowing tick that has a minimum lower value than the preceeding one
+  #
+  # @param a [Float]
+  # @param t [Integer]
   def tickdown(a,t=1)
     { p: a[:p] - 0.000000001, t: a[:t] + t }
   end
 end
 
+# The main working class 
 class SpanBarProcessor
   include SpanBarHelpers
 
+  # Convenient generator for testing purposes
+  #
+  # @!visibility private
   def self.generate_random
     p = self.new(5,1)
     i = 5
@@ -35,10 +46,18 @@ class SpanBarProcessor
 
   attr_reader :simpleBar, :simpleBars, :spanBars
 
+  # Creates a new instance of SpanBarProcessor
+  #
+  # @param opts [Hash]
+  # @option opts [Integer] :span     The span to filter for (defaults to 10)
+  # @option opts [Float]   :ticksize The ticksize to apply on timeseries (defaults to 1.0)
+  # @option opts [Boolean] :simple   Whether to only create simple bars. (defaults to false)
+  # @option opts [Boolean] :both     Whether to output simple AND strict bars. (defaults to false, overrides :simple)
+
   def initialize(opts = {})
-    @span = opts[:span].nil? ? 6 : opts[:span] 
+    @span = opts[:span].nil? ? 10 : opts[:span] 
     raise ArgumentError, "Span must by of type Integer and > 1" unless @span.is_a? Integer and @span > 1
-    @ts     = opts[:ticksize].nil? ? 1 : opts[:ticksize]
+    @ts     = opts[:ticksize].nil? ? 1.0 : opts[:ticksize]
     raise ArgumentError, "Ticksize must be Numeric, i.e. Integer, Float, ..." unless @ts.is_a? Numeric and @ts > 0
     @simple = opts[:simple].nil? ? false : opts[:simple] 
     if opts[:both] == true
@@ -53,9 +72,12 @@ class SpanBarProcessor
     @simpleBars = []
     @spanBars   = [] 
     @ticks  = []
-    @intraday = opts[:intraday].nil? ? false : opts[:intraday] 
   end
 
+  # Sends a new items of the timeseries
+  #
+  # @option t [Integer] The timestamp (preferrably in JS format, i.e. Milliseconds since 1970-01-01)
+  # @option p [Float]   The value
   def add(t, p)
     raise ArgumentError, "SpanBar#add requires either an Integer (Timestamp) or a Time object as first argument" unless [Integer, Time].include?(t.class)
     raise ArgumentError, "SpanBar#add requires either a Numeric or NilClass as second argument" unless p.is_a? Numeric or p.nil?
@@ -86,6 +108,9 @@ class SpanBarProcessor
     return false
   end
 
+  # Private method to further process simple bars to strict bars
+  #
+  # @option simple [SpanBar]
   def create_strict_from(simple)
     elem0 = @currentBar
     elem1 = simple
@@ -165,8 +190,8 @@ class SpanBarProcessor
     return res.empty? ? false : res
   end
 
-  def set_intraday
-    @spanBars.each{|bar| bar.set_intraday}
-  end
+  #def set_intraday
+  #  @spanBars.each{|bar| bar.set_intraday}
+  #end
 
 end

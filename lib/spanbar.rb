@@ -1,11 +1,14 @@
+# A model for SpanBars
 class SpanBar
 
-  attr_reader :type, :resources, :open, :high, :low, :close
+  attr_reader :type, :resources, :open, :high, :low, :close, :highval, :lowval
 
+  # Checks if instance has a type and is not :error
   def valid? 
     not (@type.nil? or @type == :error)
   end
 
+  # Calculates the path of the instance, i.e. sums up all moves, regardless of up or down
   def path
     return @path unless @path.nil?
     prev = @resources[0][:p]
@@ -17,18 +20,28 @@ class SpanBar
     @path
   end
 
+  # @!visibility private
   def start; @start  ||= @openval[:t];  end
+  # @!visibility private
   def end;   @end    ||= @closeval[:t]; end
 
-
+  # Calculates the momentum, i.e. the speed of move in current instance
   def momentum
     @momentum ||= self.path.to_f / @duration
   end
 
-  def initialize(b, ticksize = 1, strict = true)
+  # Creates a new instance
+  #
+  # @option b [Array] expects an Array of measures in format [ {t: <timestamp>, p: <value>}, ... ] 
+  # @option ticksize [Float] The ticksize of underlying processor (defaults to 1.0)
+  # @option strict   [Boolean] Whether this is a strict or a simple SpanBar (defaults to :true)
+  def initialize(b, ticksize = 1.0, strict = true)
     a = b.dup.flatten.compact
     return if a.nil? or a.empty?
+
+    # Quick helper to calculate the amount of decimals in the ticksize
     def decimals(a); num = 0; while (a != a.to_i); num += 1; a *= 10; end; num; end
+
     @ticksize   = ticksize
     @format     = "%1.#{decimals(@ticksize)}f"
     @strict     = strict
@@ -54,6 +67,9 @@ class SpanBar
     raise "Validation error: Type must be :up or :down for #{self.inspect}" if @strict and not [:up,:down].include?(@type)
   end
 
+  # Method that splits the @resources Array (containing all measures of the bar) at peak
+  #
+  # @option peak (Symbol) Can be either :high or :low
   def split_for(peak)
     tmp0 = []
     case peak
@@ -67,10 +83,12 @@ class SpanBar
     return [ @resources, tmp0 ]
   end
 
+  # For human output, set output
   def set_intraday
     @intraday = true
   end
 
+  # Returns an inspection string
   def inspect
     pval = lambda {|val| "#{val[:t]}::#{@format % val[:p]}" }
     if @strict
@@ -85,6 +103,7 @@ class SpanBar
     end
   end
 
+  # Return human readable output of instance
   def to_human
     if @intraday 
       time = lambda{|t| now = (t / 1000) % 86400; "#{"%02d" % (now/3600)}:#{"%02d" % ((now%3600)/60)}:#{"%02d" % (now%60)}" }
@@ -104,6 +123,7 @@ class SpanBar
     end
   end
 
+  # Returns an array containing instance values as needed for CSV output
   def to_a
     if @strict
       return [ "strict", 

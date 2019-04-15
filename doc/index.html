@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  File: README
+  
+    &mdash; Documentation by YARD 0.9.19
+  
+</title>
+
+  <link rel="stylesheet" href="css/style.css" type="text/css" charset="utf-8" />
+
+  <link rel="stylesheet" href="css/common.css" type="text/css" charset="utf-8" />
+
+<script type="text/javascript" charset="utf-8">
+  pathId = "README";
+  relpath = '';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="_index.html">Index</a> &raquo; 
+    <span class="title">File: README</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><div id='filecontents'>
+<h1 id="label-SpanBars">SpanBars</h1>
+
+<p>SpanBars is a tiny tool to produce span bars from time series data, either directly from a time series or based on OHLC bars.</p>
+
+<h2 id="label-Description">Description</h2>
+
+<p>SpanBars reads record-by-record (or line-by-line) and provides the according span bars. The current bar is closed and a new bar is created as soon as the given span is <em>exceeded</em>.</p>
+
+<p>Spanbars are comparable to classic OHLC bars or candle sticks, but have the major advantage of a CLOSE value always equalling either HIGH or LOW. All data eliminated can be considered as <em>noise</em>.</p>
+
+<p>Therefore exists 4 types of bars:</p>
+<ul><li>
+<p>TOP: CLOSE == HIGH</p>
+</li><li>
+<p>UP: CLOSE == HIGH and OPEN == LOW</p>
+</li><li>
+<p>BOTTOM: CLOSE == LOW</p>
+</li><li>
+<p>DOWN: CLOSE == LOW and OPEN == HIGH</p>
+</li></ul>
+
+<p>When generating spanbars based on a plain time series, these bars can be sent to output using the parameter <em>–simple</em>. Without it will<br> process the resulting data again, aggregating all bars created in the first run to start at an absolute HIGH (or LOW) and end at an absolute LOW (or HIGH resp.). Although these spans of second type might be much larger than <em>–span</em>, they can be considered to contain no noise <em>smaller or equal than</em> span.</p>
+
+<p>Creating spanbars from given OHLCs is slightly inaccurate, as even one OHLC might contain several spanbars, but that cannot be reflected by the given input data. Also, for processing OHLC-input data, note that the entire algorithm (simple spanbars first, strict spanbars seconds) is run 3 times: 1. using (span / 2) on input HIGHS 2. using (span / 2) on input LOWS 1. using (span) on [ resulting Highs, resulting Lows ].sorted_by_time</p>
+
+<p>The application area this gem is written for is denoising data for trend recognition within monitored timeseries.</p>
+
+<h2 id="label-Basic+usage">Basic usage</h2>
+
+<pre class="code ruby"><code class="ruby"><span class='id identifier rubyid_processor'>processor</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="SpanBarProcessor.html" title="SpanBarProcessor (class)">SpanBarProcessor</a></span></span><span class='period'>.</span><span class='id identifier rubyid_new'><span class='object_link'><a href="SpanBarProcessor.html#initialize-instance_method" title="SpanBarProcessor#initialize (method)">new</a></span></span><span class='lparen'>(</span><span class='label'>span:</span> <span class='int'>5</span><span class='rparen'>)</span>
+<span class='const'>File</span><span class='period'>.</span><span class='id identifier rubyid_read'>read</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>./timeseries.csv</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_map'>map</span><span class='lbrace'>{</span><span class='op'>|</span><span class='id identifier rubyid_x'>x</span><span class='op'>|</span> <span class='lbrace'>{</span> <span class='label'>t:</span> <span class='id identifier rubyid_x'>x</span><span class='lbracket'>[</span><span class='int'>0</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='label'>v:</span> <span class='id identifier rubyid_x'>x</span><span class='lbracket'>[</span><span class='int'>1</span><span class='rbracket'>]</span> <span class='rbrace'>}</span> <span class='rbrace'>}</span><span class='period'>.</span><span class='id identifier rubyid_sort_by'>sort_by</span><span class='lbrace'>{</span><span class='op'>|</span><span class='id identifier rubyid_x'>x</span><span class='op'>|</span> <span class='id identifier rubyid_x'>x</span><span class='lbracket'>[</span><span class='symbol'>:t</span><span class='rbracket'>]</span><span class='rbrace'>}</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_data'>data</span><span class='op'>|</span>
+  <span class='id identifier rubyid_processor'>processor</span><span class='period'>.</span><span class='id identifier rubyid_add'>add</span><span class='lparen'>(</span><span class='id identifier rubyid_data'>data</span><span class='rparen'>)</span>
+<span class='kw'>end</span>
+<span class='id identifier rubyid_processor'>processor</span><span class='period'>.</span><span class='id identifier rubyid_bars'>bars</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='lbrace'>{</span><span class='op'>|</span><span class='id identifier rubyid_x'>x</span><span class='op'>|</span> <span class='id identifier rubyid_puts'>puts</span> <span class='id identifier rubyid_x'>x</span><span class='rbrace'>}</span>
+</code></pre>
+
+<h2 id="label-Basic+usage+via+commandline">Basic usage via commandline</h2>
+
+<p>Using <em>spanbars</em> on the commandline expects data on STDIN as CSV with timestamps on column 1 and values on column 2. With <em>–ohlc</em> enabled, it expects CSV with “timestamps,open,high,low,close”.</p>
+
+<p>Provided output will be CSV as well, for</p>
+<ul><li>
+<p><em>simple</em>: “timestamp_open,open, timestamp_high,high, timestamp_low, low, timestamp_close, close, direction, path, momentum, direction”</p>
+</li><li>
+<p><em>strict</em>: “timestamp_open,open, timestamp_close, close, duration, path, momentum, effective_span, direction”</p>
+</li></ul>
+
+<p>I currently plan to implement 2 more parameters: <em>–human</em> to create a human-readable table (particularly concerning the time format), and <em>–intraday</em> (ommiting the date part when using <em>–human</em>).</p>
+
+<pre class="code ruby"><code class="ruby">$ cat timeseries.csv | spanbars 
+$ spanbars --input ./timeseries.csv  --span 5
+</code></pre>
+
+<h2 id="label-List+of+parameters">List of parameters</h2>
+<ul><li>
+<p>–span (defaults to 10)</p>
+</li><li>
+<p>–ticksize (default to 1.0)</p>
+</li><li>
+<p>–ohlc (defaults to false)</p>
+</li><li>
+<p>–simple (defaults to false)</p>
+</li><li>
+<p>–human (planned, defaults to false)</p>
+</li><li>
+<p>–intraday (planned, defaults to false)</p>
+</li></ul>
+</div></div>
+
+      <div id="footer">
+  Generated on Mon Apr 15 06:46:20 2019 by
+  <a href="http://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.19 (ruby-2.5.1).
+</div>
+
+    </div>
+  </body>
+</html>
