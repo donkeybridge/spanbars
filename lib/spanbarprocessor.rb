@@ -1,4 +1,3 @@
-require '../lib/spanbar.rb'
 require 'slop'
 require 'csv'
 require 'colorize'

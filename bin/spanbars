@@ -2,6 +2,7 @@
 
 THIS_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
 require File.dirname(THIS_FILE) + '/../lib/spanbarprocessor.rb'
+require File.dirname(THIS_FILE) + '/../lib/spanbar.rb'
 
 
 # prepare processing of incoming control commands (e.g. Ctrl-C)
@@ -15,7 +16,7 @@ end
 # prepare command line parser and help text
 
 op = Slop::Options.new
-op.banner = "Usage: spanbars [options]"
+op.banner = "\n#{"Usage:".light_white} spanbars [options]"
 op.separator "" 
 op.bool    '--simple'   , "Disable processing of strict StanBars", default: false
 op.float   '--ticksize' , "Set ticksize for processing",           default: 1.0
@@ -26,9 +27,8 @@ op.boolean '--intraday' , "Strip date portion (affects --human only)", default: 
 op.boolean '--help'     , "Print this help", default: false
 op.boolean '--both'     , "Returns both simple and strict bars (overrides simple)",   default: false
 op.separator "" 
-op.separator "   NOTE: spanbars relies on either STDIN data when working with a timeserie or"
-op.separator "         or on an input file, when working with OHLCs"
-op.separator "   $ cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1"
+op.separator "#{"Please note:".light_white} spanbars relies on STDIN data, e.g. "
+op.separator "    #{"$".light_white} cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1"
 op.separator ""
 
 optparser = Slop::Parser.new(op)
