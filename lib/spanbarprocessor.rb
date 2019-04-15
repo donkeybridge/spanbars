@@ -1,3 +1,11 @@
+require './lib/spanbar.rb'
+require 'slop'
+require 'csv'
+require 'json'
+require 'colorize'
+require 'outputhandler'
+
+
 module SpanBarHelpers
 
   def tickup(a,t=1)
@@ -25,7 +33,7 @@ class SpanBarProcessor
     s
   end
 
-  attr_reader :simpleBar, :simpleBars
+  attr_reader :simpleBar, :simpleBars, :spanBars
 
   def initialize(opts = {})
     @span = opts[:span].nil? ? 6 : opts[:span] 
@@ -33,12 +41,19 @@ class SpanBarProcessor
     @ts     = opts[:ticksize].nil? ? 1 : opts[:ticksize]
     raise ArgumentError, "Ticksize must be Numeric, i.e. Integer, Float, ..." unless @ts.is_a? Numeric and @ts > 0
     @simple = opts[:simple].nil? ? false : opts[:simple] 
+    if opts[:both] == true
+      @simple = false
+      @both   = true
+    else
+      @both   = false
+    end
     @limit  = @ts * @span
     @simpleMax, @simpleMin = 0, Float::INFINITY
     @simpleBar  = []
     @simpleBars = []
     @spanBars   = [] 
     @ticks  = []
+    @intraday = opts[:intraday].nil? ? false : opts[:intraday] 
   end
 
   def add(t, p)
@@ -52,15 +67,20 @@ class SpanBarProcessor
     if @simpleMax - @simpleMin > @limit
       simple = SpanBar.new(@simpleBar, @ts, false)
       unless @simple
-        strict = self.create_strict_from(simple)
+        result = self.create_strict_from(simple)
       end
       @simpleBars << simple
       @simpleMax, @simpleMin = 0, Float::INFINITY
       @simpleBar = []
       if @simple 
-        return simple
+        return [ simple ] # we need an Array from caller
       else
-        return strict
+        begin 
+          result << simple if @both and simple 
+        rescue 
+          return [ simple ] 
+        end
+        return result
       end
     end
     return false
@@ -145,10 +165,8 @@ class SpanBarProcessor
     return res.empty? ? false : res
   end
 
-
-
-
-
-
+  def set_intraday
+    @spanBars.each{|bar| bar.set_intraday}
+  end
 
 end

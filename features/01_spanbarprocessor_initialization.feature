@@ -14,13 +14,16 @@ Feature: Initializiation of SpanBarProcessor
       | @simpleMin   |  Float::INFINITY | 
       | @simpleBar   |  []   | 
       | @simpleBars  |  []   | 
+      | @intraday    | false |
+      | @both        | false |
+      | @simple      | false |
 
-  Scenario Outline: Testing methods and attr
-    Given a SpanBarProcessor is initialized with "4", "3"
-    Then it should respond to "<method>"
-    Examples:
-      | method |
-      | add    |
-      | simpleBars | 
-      | create_strict_from |
-
+    #Scenario Outline: Testing methods and attr
+    #Given a SpanBarProcessor is initialized with "4", "3"
+    #Then it should respond to "<method>"
+    #Examples:
+    #  | method |
+    #  | add    |
+    #  | simpleBars | 
+    #  | create_strict_from |
+    #

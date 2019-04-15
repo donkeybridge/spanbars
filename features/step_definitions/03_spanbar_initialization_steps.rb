@@ -9,7 +9,8 @@ end
 
 Given "a valid simple SpanBar is created by SpanBarProcessor" do 
   @p = SpanBarProcessor.new(simple: true);  @s = true; i = 1; 
-  while (not @s.is_a?(SpanBar)) do @s = @p.add(i,i); i+=1; end
+  while (not @s.is_a?(Array)) do @s = @p.add(i,i); i+=1; end
+  @s = @s[0]
 end
 
 

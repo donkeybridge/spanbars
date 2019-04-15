@@ -11,19 +11,20 @@ Feature: Initializiation of SpanBar
       | @strict      | false | 
       | @type        | :up   |
       | @open        | 1     |
+      | @momentum    | Float::INFINITY   |
+    
  
 
   Scenario Outline: Testing methods and attr of SpanBar
-    Given a valid simple SpanBar is created by SpanBarProcessor
-    Then it should respond to "<method>"
-    Examples:
-      | method   |
-      | valid?   |
-      | path     |   
-      | high     |
-      | low      |
-      | close    |
-      | open     | 
-      | inspect  | 
-      | momentum | 
+     Given a valid simple SpanBar is created by SpanBarProcessor
+     Then it should respond to "<method>"
+     Examples:
+       | method   |
+       | inspect  | 
+       | to_human |
+       | to_a     |
+       | valid?   |
+       | path     |
+       | momentum |
+       | split_for|
 

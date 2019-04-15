@@ -1,39 +1,55 @@
 #!/usr/bin/env ruby
 
-
-require './lib/spanbar.rb'
+THIS_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
+#require File.dirname(THIS_FILE) + '/../lib/spanbarprocessor.rb'
 require './lib/spanbarprocessor.rb'
-require 'slop'
-require 'csv'
-require 'json'
-require 'outputhandler'
 
 Signal.trap("TERM") { local_interrupt }
 Signal.trap("INT")  { local_interrupt }
 
-opts = Slop.parse do |o|
-  o.string  '--config'   , "Load configuration file in yaml format"
-  o.bool    '--simple'   , "Disable processing of strict StanBars", default: false
-  o.float   '--ticksize' , "Set ticksize for processing",           default: 1.0
-  o.integer '--span'     , "Set span for processing",          default: 5
+op = Slop::Options.new
+op.bool    '--simple'   , "Disable processing of strict StanBars", default: false
+op.float   '--ticksize' , "Set ticksize for processing",           default: 1.0
+op.integer '--span'     , "Set span for processing",               default: 10
+op.boolean '--ohlc'     , "Define OHLC input instead of timeseries", default: false
+op.boolean '--human'    , "Define human output",                   default: false
+op.boolean '--intraday' , "Strip date portion (affects --human only", default: false
+op.boolean '--help'     , "Print this help", default: false
+op.boolean '--both'     , "Returns both simple and strict bars (overrides simple)",   default: false
+
+optparser = Slop::Parser.new(op)
+
+begin
+  opts = optparser.parse(ARGV)
+rescue StandardError => e
+  puts e.inspect
+  puts op.to_s
+  exit
 end
 
-$o = OutputHandler.new
-$s = SpanBarProcessor.new(span: opts[:span],ticksize: opts[:ticksize], simple: opts[:simple])
+if opts.help? 
+  puts op.to_s
+  exit
+end
+
+o = OutputHandler.new
+s = SpanBarProcessor.new(opts)
 
 def local_interrupt
-  $o.puts! "Caught signal, leaving...",true
+  o.puts! "Caught signal, leaving...",true
   exit
 end
 
 unless STDIN.tty? 
-  while foo = STDIN.gets
-    line = CSV.parse(foo.chomp).flatten
-    bar = $s.add(line[0].to_i, line[1].to_f)
-    if bar and not opts[:simple] 
-      bar.each {|b| puts b.to_human} 
-    elsif bar
-      puts bar.inspect 
+  while csv = STDIN.gets
+    line   = CSV.parse(csv.chomp).flatten
+    result = s.add(line[0].to_i, line[1].to_f)
+    if result
+      if opts[:human] 
+        result.each {|r| r.set_intraday if opts[:intraday]; puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red } 
+      else # CSV output
+        result.each {|r| CSV {|out| out << r.to_a  } }
+      end
     end
   end
   exit

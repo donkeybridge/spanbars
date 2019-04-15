@@ -27,9 +27,9 @@ Then /^#add with params (\d+), ([0-9.]+) should return false$/ do |timestamp, va
   expect(@s.add(timestamp, value.to_f)).to be(false)
 end
 
-Then /^#add with params (\d+), ([0-9.]+) should return a SpanBar$/ do |timestamp, value|
+Then /^#add with params (\d+), ([0-9.]+) should return an Array$/ do |timestamp, value|
   result = @s.add(timestamp, value.to_f)
-  expect(result.class).to be(SpanBar)
+  expect(result.class).to be(Array)
 end
 
 Given /^a feeder with data from "([^"]+)" is prepared$/ do |filename| 

@@ -11,13 +11,13 @@ Feature: Using #add
      Then calling #add with params 123 and nil should return nil
      Then calling #add with params 123 and 2.5 should return false
 
-  Scenario: Testing a linear raising series
+  Scenario: eesting a linear raising series
      Given a simple SpanBarProcessor is initialized with "3", "1"
      Then  #add with params 1, 1 should return false
      Then  #add with params 2, 2 should return false
      Then  #add with params 3, 3 should return false
      Then  #add with params 4, 4 should return false
-     Then  #add with params 5, 5 should return a SpanBar
+     Then  #add with params 5, 5 should return an Array
 
   Scenario Outline: Running with reference data
     Given a SpanBarProcessor is initialized with "<deviation>", "<ticksize>"
