@@ -43,6 +43,7 @@ class SpanBar
     def decimals(a); num = 0; while (a != a.to_i); num += 1; a *= 10; end; num; end
 
     @ticksize   = ticksize
+    @intraday   = false
     @format     = "%1.#{decimals(@ticksize)}f"
     @strict     = strict
     @openval    = a[0]

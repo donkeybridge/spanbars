@@ -71,6 +71,7 @@ class SpanBarProcessor
     @simpleBars = []
     @spanBars   = [] 
     @ticks  = []
+    @intraday   = false
   end
 
   # Sends a new items of the timeseries

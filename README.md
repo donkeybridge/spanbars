@@ -53,17 +53,20 @@ Provided output will be CSV as well, for
 * _simple_: "timestamp\_open,open, timestamp\_high,high, timestamp\_low, low, timestamp\_close, close, direction, path, momentum, direction"
 * _strict_: "timestamp\_open,open, timestamp\_close, close, duration, path, momentum, effective\_span, direction"
 
-I currently plan to implement 2 more parameters: _--human_ to create a human-readable table 
-(particularly concerning the time format), and _--intraday_ (ommiting the date part when using _--human_).
-
-    $ cat timeseries.csv | spanbars 
-    $ spanbars --input ./timeseries.csv  --span 5
-
 ## List of parameters
 
-* --span     (defaults to 10)
-* --ticksize (default  to 1.0)
-* --ohlc     (defaults to false)
-* --simple   (defaults to false)
-* --human    (planned, defaults to false)
-* --intraday (planned, defaults to false)
+    Usage: spanbars [options]
+
+    --simple    Disable processing of strict StanBars
+    --ticksize  Set ticksize for processing
+    --span      Set span for processing
+    --ohlc      Define OHLC input file instead of timeseries (overrides --simple and --both)
+    --human     Define human output
+    --intraday  Strip date portion (affects --human only)
+    --help      Print this help
+    --both      Returns both simple and strict bars (overrides simple)
+
+    NOTE: spanbars relies on either STDIN data when working with a timeserie or
+          or on an input file, when working with OHLCs
+    $ cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1
+

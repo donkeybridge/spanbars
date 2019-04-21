@@ -29,8 +29,6 @@ end
 Then /^([^\s]*) should be set to ([^\s]*)$/ do |var,value|
   expect(@s.instance_variable_defined?(var.to_sym)).to be_truthy
   res = nil
-  puts "#{var}---"
-  puts "#{value}---"
   eval "res = @s.instance_variable_get(var.to_sym) == #{value}"
   expect(res).to be_truthy
 end

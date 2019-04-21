@@ -1,12 +1,12 @@
 Gem::Specification.new do |s|
   s.name        = "spanbars"
-  s.version     = "0.1.1beta"
+  s.version     = "0.1.2beta"
   s.date        = "2019-04-15"
   s.summary     = "Tiny tool to process input CSV data as timeseries to span bars"
   s.description = "Tiny tool to process input CSV data as timeseries to span bars "
   s.authors     = [ "Benjamin L. Tischendorf" ]
   s.email       = "donkeybridge@jtown.eu"
-  s.homepage    = "https://https://github.com/donkeybridge/spanbars"
+  s.homepage    = "https://github.com/donkeybridge/spanbars"
   s.platform    = Gem::Platform::RUBY
   s.license     = "BSD-4-Clause" 
   s.required_ruby_version = '~> 2.0'

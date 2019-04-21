@@ -1,8 +1,11 @@
 #!/usr/bin/env ruby
 
 THIS_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
-require File.dirname(THIS_FILE) + '/../lib/spanbarprocessor.rb'
-require File.dirname(THIS_FILE) + '/../lib/spanbar.rb'
+THIS_PATH_REL = File.dirname(THIS_FILE)
+THIS_PATH = File.absolute_path(THIS_PATH_REL)
+
+require THIS_PATH + '/../lib/spanbarprocessor.rb'
+require THIS_PATH + '/../lib/spanbar.rb'
 
 
 # prepare processing of incoming control commands (e.g. Ctrl-C)
@@ -25,7 +28,7 @@ op.boolean  '--ohlc'     , "Define OHLC input file instead of timeseries (overri
 op.boolean '--human'    , "Define human output",                   default: false
 op.boolean '--intraday' , "Strip date portion (affects --human only)", default: false
 op.boolean '--help'     , "Print this help", default: false
-op.boolean '--both'     , "Returns both simple and strict bars (overrides simple)",   default: false
+op.boolean '--both'     , "Returns both simple and strict bars (overrides --simple)",   default: false
 op.separator "" 
 op.separator "#{"Please note:".light_white} spanbars relies on STDIN data, e.g. "
 op.separator "    #{"$".light_white} cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1"
