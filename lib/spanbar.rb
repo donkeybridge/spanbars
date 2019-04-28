@@ -50,6 +50,7 @@ class SpanBar
     @closeval   = a[-1]
     @highval    = a.reverse.max_by{|x| x[:p]}
     @lowval     = a.reverse.min_by{|x| x[:p]}
+    @vol        = a.map{|x| x[:v]}.reduce(:+)
     @open       = @openval[:p]
     @high       = @highval[:p]
     @low        = @lowval[:p]
@@ -65,6 +66,7 @@ class SpanBar
     else
       @type = :error
     end
+    #puts self.inspect
     raise "Validation error: Type must be :up or :down for #{self.inspect}" if @strict and not [:up,:down].include?(@type)
   end
 
@@ -84,6 +86,12 @@ class SpanBar
     return [ @resources, tmp0 ]
   end
 
+  # Introduction of @overdrive (means the amount, that the current bar EXCEEDs span) needed this late injection
+  def inject_span(span)
+    @span  = span
+    @overdrive = ((@openval[:p] - @closeval[:p]).abs / @ticksize - @span).to_i
+  end
+
   # For human output, set output
   def set_intraday
     @intraday = true
@@ -92,16 +100,16 @@ class SpanBar
   # Returns an inspection string
   def inspect
     pval = lambda {|val| "#{val[:t]}::#{@format % val[:p]}" }
-    if @strict
-      return "<#SpanBar:0x00#{self.object_id.to_s(16)}, #{@strict ? "strict" : "simple"}, :#{@type
-                           },\tpath: #{"%g" % self.path}, momentum: #{"%g" % self.momentum
-                           }, open: #{pval.(@openval)}, close: #{pval.(@closeval)}>"
-    else
+    #if @strict
+    #  return "<#SpanBar:0x00#{self.object_id.to_s(16)}, #{@strict ? "strict" : "simple"}, :#{@type
+    #                       },\tpath: #{"%g" % self.path}, momentum: #{"%g" % self.momentum
+    #                       }, open: #{pval.(@openval)}, close: #{pval.(@closeval)}>"
+    #else
       return "<#SpanBar:0x00#{self.object_id.to_s(16)}, #{@strict ? "strict" : "simple"}, :#{@type
                            },\tpath: #{"%g" % self.path}, momentum: #{"%g" % self.momentum
                            }, open: #{pval.(@openval)}, high: #{pval.(@highval)
                            }, low: #{ pval.(@lowval)}, close: #{pval.(@closeval)}>"
-    end
+    #end
   end
 
   # Return human readable output of instance
@@ -113,35 +121,54 @@ class SpanBar
     end
     pval = lambda {|v| "[#{time.(v[:t])}, #{@format % v[:p]}]" }
     if @strict 
-      return "STRICT, OPEN: #{pval.(@openval)}, CLOSE: #{pval.(@closeval)
-           }, MOM: #{"%g" % (@momentum / @ticksize) },\tDUR: #{@duration
-           },\tEFF: #{((@close - @open) / @ticksize).to_i}, :#{@type.to_s.upcase}"
+      #return "STRICT, OPEN: #{pval.(@openval)}, CLOSE: #{pval.(@closeval)
+      return "STRICT, #{pval.(@closeval)    
+           },\tMOM: #{"%g" % (@momentum / @ticksize) },  \tDUR: #{@duration
+           },\tEFF: #{((@close - @open) / @ticksize).to_i}, OVER: #{@overdrive}, \t:#{@type.to_s.upcase}"
     else
       return "SIMPLE, OPEN: #{pval.(@openval)
       }, #{ ([:up, :bottom].include? @type) ? "LOW: #{pval.(@lowval)}" : "HIGH #{pval.(@highval)}" 
       }, CLOSE: #{pval.(@closeval)}, MOM: #{"%g" % (@momentum / @ticksize) 
-      },\tDUR: #{@duration},\tEFF: #{((@close - @open) / @ticksize).to_i}, :#{@type.to_s.upcase}"
+      },\tDUR: #{@duration},\tEFF: #{((@close - @open) / @ticksize).to_i}, :#{@type.to_s}"
     end
   end
 
   # Returns an array containing instance values as needed for CSV output
+  #
+  # Format is 
+  #   closetime, 
+  #   closeval, 
+  #   volume, 
+  #   type (UPCASE for strict), 
+  #   high/low-time for top/bottom OR nil, 
+  #   high/low-val  for top/bottom OR nil,
+  #   duration in ms
+  #   path
+  #   momentum
+  #   speed
+  #   overdrive (if STRICT) or NIL
   def to_a
     if @strict
-      return [ "strict", 
-               @openval[:t],  @openval[ :p].round(8),
-               @closeval[:t], @closeval[:p].round(8),
+      return [ 
+               @closeval[:t], @closeval[:p].round(8), @vol,  # so far it is the same as each other tick !!
+               @type.to_s.upcase.to_sym,nil,nil, 
                @duration, @path.round(8), @momentum.round(8),
-             ((@close - @open) / @ticksize).to_i, 
-             @type ]
+               ((@close - @open) / @ticksize).to_i, @overdrive
+             ]  
     else 
-      return [ "simple", 
-               @openval[:t],  @openval[ :p].round(8),
-               @highval[:t],  @highval[ :p].round(8),
-               @lowval[:t],   @lowval[  :p].round(8),
-               @closeval[:t], @closeval[:p].round(8),
+      return [ 
+              #@@openval[:t],  @openval[ :p].round(8),
+              #@highval[:t],  @highval[ :p].round(8),
+              #@lowval[:t],   @lowval[  :p].round(8),
+               @closeval[:t], @closeval[:p].round(8), @vol, # so far it is the same as each other tick
+               @type,
+               [:top,:bottom].include?(@type.to_sym) ? 
+                 ( @type.to_sym == :top ? @highval[:t] : @lowval[:t] ) : nil,
+               [:top,:bottom].include?(@type.to_sym) ?
+                 ( @type.to_sym == :top ? @highval[:p] : @lowval[:p] ) : nil,
                @duration, @path.round(8), @momentum.round(8),
-             ((@close - @open) / @ticksize).to_i,
-             @type ]
+             ((@close - @open) / @ticksize).to_i, nil
+              ]
     end 
   end
 end

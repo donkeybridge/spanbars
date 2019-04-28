@@ -11,7 +11,7 @@ module SpanBarHelpers
   # @param a [Float]
   # @param t [Integer]
   def tickup(a,t=1)
-    { p: a[:p] + 0.000000001, t: a[:t] + t }
+    { p: a[:p] + 0.000000001, t: a[:t] + t, v: 0 }
   end
 
   # creates a new upfollowing tick that has a minimum lower value than the preceeding one
@@ -19,7 +19,7 @@ module SpanBarHelpers
   # @param a [Float]
   # @param t [Integer]
   def tickdown(a,t=1)
-    { p: a[:p] - 0.000000001, t: a[:t] + t }
+    { p: a[:p] - 0.000000001, t: a[:t] + t, v: 0 }
   end
 end
 
@@ -78,11 +78,11 @@ class SpanBarProcessor
   #
   # @option t [Integer] The timestamp (preferrably in JS format, i.e. Milliseconds since 1970-01-01)
   # @option p [Float]   The value
-  def add(t, p)
+  def add(t, p, v = 0)
     raise ArgumentError, "SpanBar#add requires either an Integer (Timestamp) or a Time object as first argument" unless [Integer, Time].include?(t.class)
     raise ArgumentError, "SpanBar#add requires either a Numeric or NilClass as second argument" unless p.is_a? Numeric or p.nil?
     return nil if p.nil?
-    tick = {t: (t.class == Integer ? t : t.to_i), p: p.to_f}
+    tick = {t: (t.class == Integer ? t : t.to_i), p: p.to_f, v: v.to_i}
     @simpleBar << tick
     @simpleMax = [tick[:p],@simpleMax].max
     @simpleMin = [tick[:p],@simpleMin].min
@@ -90,6 +90,7 @@ class SpanBarProcessor
       simple = SpanBar.new(@simpleBar, @ts, false)
       unless @simple
         result = self.create_strict_from(simple)
+        result.map{|x| x.inject_span(@span)} if result
       end
       @simpleBars << simple
       @simpleMax, @simpleMin = 0, Float::INFINITY
@@ -125,7 +126,7 @@ class SpanBarProcessor
         tmp0, tmp1 = elem1.split_for :high
         @currentBar = SpanBar.new([tmp0.last, tmp1], @ts)
       when *[:up,:down]
-        @currentBar = elem1
+        @currentBar = SpanBar.new(elem1.resources, @ts)
       else
         raise "Invalid type for initial simple SpanBar #{elem0}"
       end

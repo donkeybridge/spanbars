@@ -29,6 +29,9 @@ op.boolean '--human'    , "Define human output",                   default: fals
 op.boolean '--intraday' , "Strip date portion (affects --human only)", default: false
 op.boolean '--help'     , "Print this help", default: false
 op.boolean '--both'     , "Returns both simple and strict bars (overrides --simple)",   default: false
+op.integer '--time'     , "The column in CSV providing the timestamp, defaults to the first", default: 0
+op.integer '--value'    , "The column in CSV providing the value, defaults to the second", default: 1
+op.integer '--volume'   , "The column in CSV providing the volume, default to the third",  default: 2
 op.separator "" 
 op.separator "#{"Please note:".light_white} spanbars relies on STDIN data, e.g. "
 op.separator "    #{"$".light_white} cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1"
@@ -55,7 +58,7 @@ unless STDIN.tty?
     s = SpanBarProcessor.new(opts)
     while csv = STDIN.gets
       line   = CSV.parse(csv.chomp).flatten
-      result = s.add(line[0].to_i, line[1].to_f)
+      result = s.add(line[opts[:time]].to_i, line[opts[:value]].to_f, line[opts[:volume]].to_i)
       if result
         if opts[:human] 
           result.each {|r| r.set_intraday if opts[:intraday]; puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red } 
@@ -77,13 +80,14 @@ unless STDIN.tty?
     lowProc  = SpanBarProcessor.new(highOpts)
     finProc  = SpanBarProcessor.new(opts)
     data.each do |d| 
-      highProc.add(d[0].to_i, d[2].to_f)
-      lowProc. add(d[0].to_i, d[3].to_f)
+      highProc.add(d[0].to_i, d[2].to_f, d[5].to_i)
+      lowProc. add(d[0].to_i, d[3].to_f, d[5].to_i)
     end
-    res = highProc.spanBars.map{|bar| bar.type == :up ? bar.highval : bar.lowval } #.map{|peak| bar.highval }
-    res.flatten!
+    highs = highProc.spanBars.map{|bar| bar.type.to_s.downcase == "up"   ? bar.highval : nil } 
+    lows  =  lowProc.spanBars.map{|bar| bar.type.to_s.downcase == "down" ? nil :  bar.lowval } 
+    res = [ highs, lows ].flatten.compact
     res.sort!{|a,b| a[:t] <=> b[:t]}
-    res.each {|peak| finProc.add peak[:t],peak[:p]}
+    res.each {|peak| finProc.add peak[:t],peak[:p], peak[:v]}
     if opts[:human]
       finProc.spanBars.each {|r| r.set_intraday if opts[:intraday]; puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red }
     else # CSV output
