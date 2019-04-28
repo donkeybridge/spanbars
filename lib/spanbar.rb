@@ -32,7 +32,7 @@ class SpanBar
 
   # Creates a new instance
   #
-  # @option b [Array] expects an Array of measures in format [ {t: <timestamp>, p: <value>}, ... ] 
+  # @option b [Array] expects an Array of measures 
   # @option ticksize [Float] The ticksize of underlying processor (defaults to 1.0)
   # @option strict   [Boolean] Whether this is a strict or a simple SpanBar (defaults to :true)
   def initialize(b, ticksize = 1.0, strict = true)

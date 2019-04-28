@@ -96,39 +96,40 @@
 
 <h2 id="label-Basic+usage+via+commandline">Basic usage via commandline</h2>
 
-<p>Using <em>spanbars</em> on the commandline expects data on STDIN as CSV with timestamps on column 1 and values on column 2. With <em>–ohlc</em> enabled, it expects CSV with “timestamps,open,high,low,close”.</p>
+<p>Using <em>spanbars</em> on the commandline expects data on STDIN as CSV with timestamps on column 1 and values on column 2. With <em>–ohlc</em> enabled, it expects CSV with “timestamps,open,high,low,close,volume”.</p>
 
-<p>Provided output will be CSV as well, for</p>
+<p>Provided output will be CSV as well, using UPPERCASE type for strict bars</p>
 <ul><li>
-<p><em>simple</em>: “timestamp_open,open, timestamp_high,high, timestamp_low, low, timestamp_close, close, direction, path, momentum, direction”</p>
+<p><em>simple</em>: “close-time, closeval, vol, type, peaktime or nil, peakval or nil, duration, path, momentum, speed, nil”</p>
 </li><li>
-<p><em>strict</em>: “timestamp_open,open, timestamp_close, close, duration, path, momentum, effective_span, direction”</p>
+<p><em>strict</em>: “close-time, closeval, vol, TYPE, nil, nil, duration, path, momentum, speed, overdrive”</p>
 </li></ul>
-
-<p>I currently plan to implement 2 more parameters: <em>–human</em> to create a human-readable table (particularly concerning the time format), and <em>–intraday</em> (ommiting the date part when using <em>–human</em>).</p>
-
-<pre class="code ruby"><code class="ruby">$ cat timeseries.csv | spanbars 
-$ spanbars --input ./timeseries.csv  --span 5
-</code></pre>
 
 <h2 id="label-List+of+parameters">List of parameters</h2>
-<ul><li>
-<p>–span (defaults to 10)</p>
-</li><li>
-<p>–ticksize (default to 1.0)</p>
-</li><li>
-<p>–ohlc (defaults to false)</p>
-</li><li>
-<p>–simple (defaults to false)</p>
-</li><li>
-<p>–human (planned, defaults to false)</p>
-</li><li>
-<p>–intraday (planned, defaults to false)</p>
-</li></ul>
+
+<pre class="code ruby"><code class="ruby">Usage: spanbars [options]
+
+--simple    Disable processing of strict StanBars
+--ticksize  Set ticksize for processing
+--span      Set span for processing
+--ohlc      Define OHLC input file instead of timeseries (overrides --simple and --both)
+--human     Define human output
+--intraday  Strip date portion (affects --human only)
+--help      Print this help
+--both      Returns both simple and strict bars (overrides simple)
+--time      Location of timestamp in source (defaults to first)
+--value     Location of value in source (defaults to second)
+--volume    Location of volume in source (defaults to third)
+</code></pre>
+
+<p>NOTE: spanbars relies on STDIN data, e.g.</p>
+
+<pre class="code ruby"><code class="ruby">$ cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1
+</code></pre>
 </div></div>
 
       <div id="footer">
-  Generated on Mon Apr 15 06:46:20 2019 by
+  Generated on Sun Apr 28 20:49:55 2019 by
   <a href="http://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
   0.9.19 (ruby-2.5.1).
 </div>

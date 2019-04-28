@@ -46,12 +46,12 @@ within monitored timeseries.
 ## Basic usage via commandline
 
 Using _spanbars_ on the commandline expects data on STDIN as CSV with timestamps on column 1 and 
-values on column 2. With _--ohlc_ enabled, it expects CSV with "timestamps,open,high,low,close".
+values on column 2. With _--ohlc_ enabled, it expects CSV with "timestamps,open,high,low,close,volume".
 
-Provided output will be CSV as well, for
+Provided output will be CSV as well, using UPPERCASE type for strict bars
 
-* _simple_: "timestamp_close, close, vol, type, peaktime or nil, peakval or nil, duration, path, momentum, speed, nil"
-* _strict_: "timestamp_close, close, vol, TYPE,             nil,            nil, duration, path, momentum, speed, overdrive"
+* _simple_: "close-time, closeval, vol, type, peaktime or nil, peakval or nil, duration, path, momentum, speed, nil"
+* _strict_: "close-time, closeval, vol, TYPE,             nil,            nil, duration, path, momentum, speed, overdrive"
 
 ## List of parameters
 
@@ -70,7 +70,7 @@ Provided output will be CSV as well, for
     --volume    Location of volume in source (defaults to third)
    
 
-    NOTE: spanbars relies on either STDIN data when working with a timeserie or
-          or on an input file, when working with OHLCs
+NOTE: spanbars relies on STDIN data, e.g. 
+
     $ cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1
 
