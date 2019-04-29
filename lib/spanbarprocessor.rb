@@ -1,6 +1,3 @@
-require 'slop'
-require 'csv'
-require 'colorize'
 
 
 # SpanBarHelpers includes some little helpers for convenient usage in SpanBarProcessor

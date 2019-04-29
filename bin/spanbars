@@ -1,11 +1,10 @@
 #!/usr/bin/env ruby
 
-THIS_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
-THIS_PATH_REL = File.dirname(THIS_FILE)
+THIS_SPANBAR_EXECUTABLE_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
+THIS_PATH_REL = File.dirname(THIS_SPANBAR_EXECUTABLE_FILE)
 THIS_PATH = File.absolute_path(THIS_PATH_REL)
 
-require THIS_PATH + '/../lib/spanbarprocessor.rb'
-require THIS_PATH + '/../lib/spanbar.rb'
+require THIS_PATH + '/../lib/spanbars.rb'
 
 
 # prepare processing of incoming control commands (e.g. Ctrl-C)
