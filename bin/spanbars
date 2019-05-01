@@ -1,10 +1,8 @@
 #!/usr/bin/env ruby
 
-THIS_SPANBAR_EXECUTABLE_FILE = File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__
-THIS_PATH_REL = File.dirname(THIS_SPANBAR_EXECUTABLE_FILE)
-THIS_PATH = File.absolute_path(THIS_PATH_REL)
+SPANBAR_EXECUTABLE_PATH = File.absolute_path( File.dirname( File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__ ) ) 
 
-require THIS_PATH + '/../lib/spanbars.rb'
+require SPANBAR_EXECUTABLE_PATH + '/../lib/spanbars.rb'
 
 
 # prepare processing of incoming control commands (e.g. Ctrl-C)
@@ -22,6 +20,7 @@ op.banner = "\n#{"Usage:".light_white} spanbars [options]"
 op.separator "" 
 op.bool    '--simple'   , "Disable processing of strict StanBars", default: false
 op.float   '--ticksize' , "Set ticksize for processing",           default: 1.0
+op.string  '--symbol'   , "If set, uses first column of CSV as symbol description"
 op.integer '--span'     , "Set span for processing",               default: 10
 op.boolean  '--ohlc'     , "Define OHLC input file instead of timeseries (overrides --simple and --both)", default: false
 op.boolean '--human'    , "Define human output",                   default: false
@@ -57,12 +56,16 @@ unless STDIN.tty?
     s = SpanBarProcessor.new(opts)
     while csv = STDIN.gets
       line   = CSV.parse(csv.chomp).flatten
+      if opts[:symbol] 
+        sym = line.shift
+        next unless sym == opts[:symbol]
+      end
       result = s.add(line[opts[:time]].to_i, line[opts[:value]].to_f, line[opts[:volume]].to_i)
       if result
         if opts[:human] 
           result.each {|r| r.set_intraday if opts[:intraday]; puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red } 
         else # CSV output
-          result.each {|r| CSV {|out| out << r.to_a  } }
+          result.each {|r| CSV {|out| out << (opts[:symbol] ? r.to_a.unshift(opts[:symbol]) : r.to_a)  } }
         end
       end
     end
