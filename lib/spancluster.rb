@@ -2,6 +2,7 @@ require 'json'
 require 'slop'
 require 'colorize'
 require 'csv'
+require 'ezconfig'
 
 class SpanCluster
 
@@ -29,7 +30,9 @@ class SpanCluster
 
   def initialize(opts = {})
 
-    @ticksize = opts[:ticksize].nil? ? 1.0 : opts[:ticksize]
+    @symbol   = opts[:symbol] 
+    @ticksize = opts[:ticksize].nil? ? (@symbol.nil? ? 1.0 : EzConfig::read_symbol_config(@symbol)["ticksize"] ) : opts[:ticksize]
+
     @grace    = opts[:grace].nil? ? 0 : opts[:grace]
     min = opts[:min].nil? ? 5 : opts[:min]
     @min_size = min
@@ -171,6 +174,10 @@ class SpanCluster
       end
     end
     res
+  end
+
+  def json_clusters
+    puts self.clusters.to_json
   end
 
   def print_clusters

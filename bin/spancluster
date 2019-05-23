@@ -18,13 +18,15 @@ end
 op = Slop::Options.new
 op.banner = "\n#{"Usage:".light_white} spanbars [options]"
 op.separator "" 
-op.float   '--ticksize' , "Set ticksize for processing",           default: 1.0
+op.float   '--ticksize' , "Set ticksize for processing"
 op.string  '--symbol'   , "If set, uses first column of CSV as symbol description"
 op.integer '--minspan'  , "Set minimum span to work on, defaults to 5", default: 5
 op.integer '--maxpeaks' , "Set maximum peaks to carry in each span, set to 0 for infinite, defaults to 0", default: 0
-op.boolean '--human'    , "Define human output",                   default: false
+op.boolean '--human'    , "Define human output",                   default: true
+op.boolean '--json'     , "Define JSON output"
 op.boolean '--help'     , "Print this help", default: false
 op.integer '--time'     , "The column in CSV providing the timestamp, defaults to the first", default: 0
+op.string '--format'    , "defaults to '%1.2f'", default: "%1.2f"
 op.integer '--value'    , "The column in CSV providing the value, defaults to the second", default: 1
 op.integer '--volume'   , "The column in CSV providing the volume, default to the third",  default: 2
 op.separator "" 
@@ -53,7 +55,7 @@ unless STDIN.tty?
   counter = 0 
   while csv = STDIN.gets
     counter += 1
-    puts counter if counter % 500 == 0 
+    puts counter if counter % 500 == 0 and not opts[:json]
     line   = CSV.parse(csv.chomp, converters: :all).flatten
     #puts "processing line #{line}"
     if opts[:symbol] 
@@ -70,7 +72,11 @@ unless STDIN.tty?
       end
     end
   end
-  puts s.print_clusters
+  if opts[:json]
+    puts s.json_clusters
+  else
+    puts s.print_clusters
+  end
 else
   puts op.to_s
 end
