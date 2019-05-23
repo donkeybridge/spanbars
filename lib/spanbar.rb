@@ -17,7 +17,8 @@ class SpanBar
       @path += (@resources[i][:p] - prev).abs
       prev  =  @resources[i][:p]
     end
-    @path
+    @path /= @ticksize
+    return @path 
   end
 
   # @!visibility private
@@ -145,21 +146,19 @@ class SpanBar
   #   duration in ms
   #   path
   #   momentum
-  #   speed
+  #   move
   #   overdrive (if STRICT) or NIL
+  #   recognitiontime
   def to_a
     if @strict
       return [ 
                @closeval[:t], @closeval[:p].round(8), @vol,  # so far it is the same as each other tick !!
                @type.to_s.upcase.to_sym,nil,nil, 
                @duration, @path.round(8), @momentum.round(8),
-               ((@close - @open) / @ticksize).to_i, @overdrive
+               ((@close - @open) / @ticksize).to_i, @overdrive, (Time.now.to_f * 1000).to_i
              ]  
     else 
       return [ 
-              #@@openval[:t],  @openval[ :p].round(8),
-              #@highval[:t],  @highval[ :p].round(8),
-              #@lowval[:t],   @lowval[  :p].round(8),
                @closeval[:t], @closeval[:p].round(8), @vol, # so far it is the same as each other tick
                @type,
                [:top,:bottom].include?(@type.to_sym) ? 
@@ -167,7 +166,7 @@ class SpanBar
                [:top,:bottom].include?(@type.to_sym) ?
                  ( @type.to_sym == :top ? @highval[:p] : @lowval[:p] ) : nil,
                @duration, @path.round(8), @momentum.round(8),
-             ((@close - @open) / @ticksize).to_i, nil
+               ((@close - @open) / @ticksize).to_i, nil, (Time.now.to_f * 1000).to_i
               ]
     end 
   end
