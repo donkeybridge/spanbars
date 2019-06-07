@@ -31,10 +31,15 @@ class SpanCluster
   def initialize(opts = {})
 
     @symbol   = opts[:symbol] 
-    @ticksize = opts[:ticksize].nil? ? (@symbol.nil? ? 1.0 : EzConfig::read_symbol_config(@symbol)["ticksize"] ) : opts[:ticksize]
+    if EzConfig
+      @ticksize = opts[:ticksize].nil? ? (@symbol.nil? ? 1.0 : EzConfig::read_symbol_config(@symbol)["ticksize"] ) : opts[:ticksize]
+    else
+      @ticksize = opts[:ticksize].nil? ? 1.0 : opts[:ticksize]
+    end
+
 
     @grace    = opts[:grace].nil? ? 0 : opts[:grace]
-    min = opts[:min].nil? ? 5 : opts[:min]
+    min = opts[:minspan].nil? ? 5 : opts[:minspan]
     @min_size = min
     @max_size = min
     @maxpeaks = opts[:maxpeaks]

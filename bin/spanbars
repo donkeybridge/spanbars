@@ -25,11 +25,14 @@ op.integer '--span'     , "Set span for processing",               default: 10
 op.boolean  '--ohlc'     , "Define OHLC input file instead of timeseries (overrides --simple and --both)", default: false
 op.boolean '--human'    , "Define human output",                   default: false
 op.boolean '--intraday' , "Strip date portion (affects --human only)", default: false
+op.integer '--grace'    , "Set <grace> ticks for trend check, default: 0", default: 0
 op.boolean '--help'     , "Print this help", default: false
 op.boolean '--both'     , "Returns both simple and strict bars (overrides --simple)",   default: false
 op.integer '--time'     , "The column in CSV providing the timestamp, defaults to the first", default: 0
 op.integer '--value'    , "The column in CSV providing the value, defaults to the second", default: 1
 op.integer '--volume'   , "The column in CSV providing the volume, default to the third",  default: 2
+op.boolean '--bullish'  , "Print support / resistance / status information", default: false
+op.boolean '--bearish'  , "Print support / resistance / status information", default: false
 op.separator "" 
 op.separator "#{"Please note:".light_white} spanbars relies on STDIN data, e.g. "
 op.separator "    #{"$".light_white} cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1"
@@ -51,7 +54,14 @@ if opts.help?
   exit
 end
 
-unless STDIN.tty? 
+
+if STDIN.tty? 
+  puts op.to_s
+else
+  if opts[:symbol] and EzConfig
+    symbolconfig = EzConfig::read_ez_symbolconfig(opts[:symbol]) 
+    opts[:ticksize] = symbolconfig["ticksize"] 
+  end
   unless opts.ohlc?
     s = SpanBarProcessor.new(opts)
     while csv = STDIN.gets
@@ -63,9 +73,20 @@ unless STDIN.tty?
       result = s.add(line[opts[:time]].to_i, line[opts[:value]].to_f, line[opts[:volume]].to_i)
       if result
         if opts[:human] 
-          result.each {|r| r.set_intraday if opts[:intraday]; puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red } 
+          result.each do |r| 
+            if r.is_a? SpanBar
+              r.set_intraday if opts[:intraday]
+              puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red 
+            else
+              puts "#{r.to_s.light_blue}"
+            end
+          end
         else # CSV output
-          result.each {|r| CSV {|out| out << (opts[:symbol] ? r.to_a.unshift(opts[:symbol]) : r.to_a)  } }
+          result.each do |r| 
+            CSV do |out| 
+              out << (opts[:symbol] ? r.to_a.unshift(opts[:symbol]) : r.to_a) 
+            end
+          end
         end
       end
     end
@@ -77,6 +98,8 @@ unless STDIN.tty?
     opts.delete(:simple)
     opts.delete(:both)
     highOpts = opts.dup
+    highOpts.delete(:bullish)
+    highOpts.delete(:bearish)
     highOpts[:span] = (opts[:span] / 2.0).floor.to_i
     highProc = SpanBarProcessor.new(highOpts)
     lowProc  = SpanBarProcessor.new(highOpts)
@@ -89,15 +112,21 @@ unless STDIN.tty?
     lows  =  lowProc.spanBars.map{|bar| bar.type.to_s.downcase == "down" ? nil :  bar.lowval } 
     res = [ highs, lows ].flatten.compact
     res.sort!{|a,b| a[:t] <=> b[:t]}
-    res.each {|peak| finProc.add peak[:t],peak[:p], peak[:v]}
+    container = [ ]
+    res.each {|peak| result = finProc.add peak[:t],peak[:p], peak[:v]; result.each{|x| container << x} if result }
     if opts[:human]
-      finProc.spanBars.each {|r| r.set_intraday if opts[:intraday]; puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red }
+      container.each do |r| 
+        if r.is_a? Spanbar
+          r.set_intraday if opts[:intraday]
+          puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red 
+        else
+          puts "#{r.to_s.light_blue}" 
+        end
+      end
     else # CSV output
-      finProc.spanBars.each {|r| CSV {|out| out << r.to_a  } }
+      container.each {|r| CSV{|out| out << r.to_a  } }  
     end
   end
-else
-  puts op.to_s
 end
 
 

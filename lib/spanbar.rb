@@ -31,6 +31,10 @@ class SpanBar
     @momentum ||= self.path.to_f / @duration
   end
 
+  def direction
+    @type
+  end
+
   # Creates a new instance
   #
   # @option b [Array] expects an Array of measures 
@@ -101,16 +105,16 @@ class SpanBar
   # Returns an inspection string
   def inspect
     pval = lambda {|val| "#{val[:t]}::#{@format % val[:p]}" }
-    #if @strict
-    #  return "<#SpanBar:0x00#{self.object_id.to_s(16)}, #{@strict ? "strict" : "simple"}, :#{@type
-    #                       },\tpath: #{"%g" % self.path}, momentum: #{"%g" % self.momentum
-    #                       }, open: #{pval.(@openval)}, close: #{pval.(@closeval)}>"
-    #else
-      return "<#SpanBar:0x00#{self.object_id.to_s(16)}, #{@strict ? "strict" : "simple"}, :#{@type
+    if @strict
+      return "<#SpanBar:0x00#{self.object_id.to_s(16)}, strict, :#{@type
+                           },\tpath: #{"%g" % self.path}, momentum: #{"%g" % self.momentum
+                           }, open: #{pval.(@openval)}, close: #{pval.(@closeval)}>"
+    else
+      return "<#SpanBar:0x00#{self.object_id.to_s(16)}, simple, :#{@type
                            },\tpath: #{"%g" % self.path}, momentum: #{"%g" % self.momentum
                            }, open: #{pval.(@openval)}, high: #{pval.(@highval)
-                           }, low: #{ pval.(@lowval)}, close: #{pval.(@closeval)}>"
-    #end
+                           }, close: #{pval.(@closeval)}>"
+    end
   end
 
   # Return human readable output of instance
