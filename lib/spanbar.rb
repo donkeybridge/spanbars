@@ -92,10 +92,10 @@ class SpanBar
   end
 
   # Introduction of @overdrive (means the amount, that the current bar EXCEEDs span) needed this late injection
-  def inject_span(span)
-    @span  = span
-    @overdrive = ((@openval[:p] - @closeval[:p]).abs / @ticksize - @span).to_i
-  end
+  #def inject_span(span)
+  #  @span  = span
+  #  @overdrive = ((@openval[:p] - @closeval[:p]).abs / @ticksize - @span).to_i
+  #end
 
   # For human output, set output
   def set_intraday
@@ -129,7 +129,8 @@ class SpanBar
       #return "STRICT, OPEN: #{pval.(@openval)}, CLOSE: #{pval.(@closeval)
       return "STRICT, #{pval.(@closeval)    
            },\tMOM: #{"%g" % (@momentum / @ticksize) },  \tDUR: #{@duration
-           },\tEFF: #{((@close - @open) / @ticksize).to_i}, OVER: #{@overdrive}, \t:#{@type.to_s.upcase}"
+           },\tEFF: #{((@close - @open) / @ticksize).to_i #}, OVER: #{@overdrive
+           }, \t:#{@type.to_s.upcase}"
     else
       return "SIMPLE, OPEN: #{pval.(@openval)
       }, #{ ([:up, :bottom].include? @type) ? "LOW: #{pval.(@lowval)}" : "HIGH #{pval.(@highval)}" 
@@ -159,7 +160,8 @@ class SpanBar
                @closeval[:t], @closeval[:p].round(8), @vol,  # so far it is the same as each other tick !!
                @type.to_s.upcase.to_sym,nil,nil, 
                @duration, @path.round(8), @momentum.round(8),
-               ((@close - @open) / @ticksize).to_i, @overdrive, (Time.now.to_f * 1000).to_i
+               ((@close - @open) / @ticksize).to_i, #@overdrive, 
+               (Time.now.to_f * 1000).to_i
              ]  
     else 
       return [ 

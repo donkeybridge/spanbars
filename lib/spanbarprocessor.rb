@@ -63,6 +63,7 @@ class SpanBarProcessor
       @both   = false
     end
     @limit  = @ts * @span
+    @limitMon = Monitor.new
     @simpleMax, @simpleMin = 0, Float::INFINITY
     @simpleBar  = []
     @simpleBars = []
@@ -74,6 +75,13 @@ class SpanBarProcessor
       @checkTrend = true
       @bullish    = {bullish: 1, tick: nil, support: nil, resistance: nil, status: nil, counter: nil } if opts[:bullish]
       @bearish    = {bearish: 1, tick: nil, support: nil, resistance: nil, status: nil, counter: nil } if opts[:bearish]
+    end
+  end
+
+  def update_span(span)
+    @limitMon.synchronize do
+      @span = span
+      @limit = @span * @ts
     end
   end
 
@@ -90,32 +98,34 @@ class SpanBarProcessor
     @simpleBar << tick
     @simpleMax = [tick[:p],@simpleMax].max
     @simpleMin = [tick[:p],@simpleMin].min
-    if @simpleMax - @simpleMin > @limit
-      simple = SpanBar.new(@simpleBar, @ts, false)
-      unless @simple
-        result = self.create_strict_from(simple)
-        result.map{|x| x.inject_span(@span)} if result
-      end
-      @simpleBars << simple
-      @simpleMax, @simpleMin = 0, Float::INFINITY
-      @simpleBar = []
-      if @simple 
-        return [ simple ] # we need an Array from caller
-      else
-        begin 
-          result << simple if @both and simple 
-        rescue 
-          return [ simple ] 
+    @limitMon.synchronize do
+      if @simpleMax - @simpleMin > @limit
+        simple = SpanBar.new(@simpleBar, @ts, false)
+        unless @simple
+          result = self.create_strict_from(simple)
+          #result.map{|x| x.inject_span(@span)} if result
+        end
+        @simpleBars << simple
+        @simpleMax, @simpleMin = 0, Float::INFINITY
+        @simpleBar = []
+        if @simple 
+          return [ simple ] # we need an Array from caller
+        else
+          begin 
+            result << simple if @both and simple 
+          rescue 
+            return [ simple ] 
+          end
         end
       end
     end
-      if @checkTrend
-        trendStatus = self.check_trend_status(t, p)
-        if trendStatus and not result
-          result = trendStatus
-        elsif trendStatus
-          trendStatus.each {|t| result << t } 
-        end
+    if @checkTrend
+      trendStatus = self.check_trend_status(t, p)
+      if trendStatus and not result
+        result = trendStatus
+      elsif trendStatus
+        trendStatus.each {|t| result << t } 
+      end
     end
     return result
   end
@@ -124,81 +134,83 @@ class SpanBarProcessor
   #
   # @option simple [SpanBar]
   def create_strict_from(simple)
-    elem0 = @currentBar
-    elem1 = simple
+    res = [] 
+    @limitMon.synchronize do
+      elem0 = @currentBar
+      elem1 = simple
 
-    res   = [ ]
-    if elem0.nil?  # means this is the very first chunk working on
-      case elem1.type
-      when :bottom
-        tmp0, tmp1 = elem1.split_for :low
-        @currentBar = SpanBar.new([tmp0.last, tmp1], @ts)
-      when :top
-        tmp0, tmp1 = elem1.split_for :high
-        @currentBar = SpanBar.new([tmp0.last, tmp1], @ts)
-      when *[:up,:down]
-        @currentBar = SpanBar.new(elem1.resources, @ts)
-      else
-        raise "Invalid type for initial simple SpanBar #{elem0}"
-      end
-    else           # otherwise there is already a preceding element
-      case elem0.type
-      when :up
+      if elem0.nil?  # means this is the very first chunk working on
         case elem1.type
-        when *[:bottom, :up]
-          if elem0.close - elem1.low > @limit
-            res << elem0
-            tmp0, tmp1 = elem1.split_for :low
-            res <<        SpanBar.new([ tickup(elem0.resources.last), tmp0 ], @ts)
-            @currentBar = SpanBar.new([ tickup(tmp0.last),tmp1], @ts)
-          elsif elem0.close - elem1.low <= @limit and elem0.close <= elem1.close
-            @currentBar = SpanBar.new([ elem0.resources, elem1.resources], @ts)
-          else 
-            # silently dropping unneeded fragment
-          end
-        when *[:top, :down]
-          if elem1.high >= elem0.close
-            tmp0, tmp1 = elem1.split_for :high
-            res << SpanBar.new([ elem0.resources, tmp0 ], @ts)
-            @currentBar = SpanBar.new([tickdown(tmp0.last),tmp1], @ts)
+        when :bottom
+          tmp0, tmp1 = elem1.split_for :low
+          @currentBar = SpanBar.new([tmp0.last, tmp1], @ts)
+        when :top
+          tmp0, tmp1 = elem1.split_for :high
+          @currentBar = SpanBar.new([tmp0.last, tmp1], @ts)
+        when *[:up,:down]
+          @currentBar = SpanBar.new(elem1.resources, @ts)
+        else
+          raise "Invalid type for initial simple SpanBar #{elem0}"
+        end
+      else           # otherwise there is already a preceding element
+        case elem0.type
+        when :up
+          case elem1.type
+          when *[:bottom, :up]
+            if elem0.close - elem1.low > @limit
+              res << elem0
+              tmp0, tmp1 = elem1.split_for :low
+              res <<        SpanBar.new([ tickup(elem0.resources.last), tmp0 ], @ts)
+              @currentBar = SpanBar.new([ tickup(tmp0.last),tmp1], @ts)
+            elsif elem0.close - elem1.low <= @limit and elem0.close <= elem1.close
+              @currentBar = SpanBar.new([ elem0.resources, elem1.resources], @ts)
+            else 
+              # silently dropping unneeded fragment
+            end
+          when *[:top, :down]
+            if elem1.high >= elem0.close
+              tmp0, tmp1 = elem1.split_for :high
+              res << SpanBar.new([ elem0.resources, tmp0 ], @ts)
+              @currentBar = SpanBar.new([tickdown(tmp0.last),tmp1], @ts)
+            else
+              res << elem0
+              @currentBar = SpanBar.new([ tickup(elem0.resources.last), elem1.resources], @ts)
+            end
           else
-            res << elem0
-            @currentBar = SpanBar.new([ tickup(elem0.resources.last), elem1.resources], @ts)
+            raise "Unknown type for secondary simple SpanBar #{elem1}"
+          end
+        when :down
+          case elem1.type
+          when *[:top, :down]
+            if elem1.high - elem0.close > @limit # only for percentage !?: or elem1.low <= elem0.low
+              res << elem0
+              tmp0, tmp1 = elem1.split_for :high
+              res <<        SpanBar.new([  tickup(elem0.resources.last), tmp0 ], @ts)
+              @currentBar = SpanBar.new([tickdown(tmp0.last),tmp1], @ts)
+            elsif elem1.high - elem0.close <= @limit and elem0.close >= elem1.close
+              @currentBar = SpanBar.new([elem0.resources, elem1.resources], @ts)
+            else
+              # silently dropping unneeded fragment 
+            end
+          when *[:bottom, :up]
+            if elem1.low <= elem0.close
+              tmp0, tmp1 =  elem1.split_for :low
+              res <<        SpanBar.new([ elem0.resources, tmp0 ], @ts)
+              @currentBar = SpanBar.new([tickup(tmp0.last),tmp1],  @ts)
+            else
+              res << elem0
+              @currentBar = SpanBar.new([ tickup(elem0.resources.last), elem1.resources], @ts)
+            end
+          else
+            raise "Unknown or invalid type for secondary simple SpanBar #{elem1}"
           end
         else
-          raise "Unknown type for secondary simple SpanBar #{elem1}"
+          raise "Unknown or invalid type for primary simple SpanBar #{elem0}"
         end
-      when :down
-        case elem1.type
-        when *[:top, :down]
-          if elem1.high - elem0.close > @limit # only for percentage !?: or elem1.low <= elem0.low
-            res << elem0
-            tmp0, tmp1 = elem1.split_for :high
-            res <<        SpanBar.new([  tickup(elem0.resources.last), tmp0 ], @ts)
-            @currentBar = SpanBar.new([tickdown(tmp0.last),tmp1], @ts)
-          elsif elem1.high - elem0.close <= @limit and elem0.close >= elem1.close
-            @currentBar = SpanBar.new([elem0.resources, elem1.resources], @ts)
-          else
-            # silently dropping unneeded fragment 
-          end
-        when *[:bottom, :up]
-          if elem1.low <= elem0.close
-            tmp0, tmp1 =  elem1.split_for :low
-            res <<        SpanBar.new([ elem0.resources, tmp0 ], @ts)
-            @currentBar = SpanBar.new([tickup(tmp0.last),tmp1],  @ts)
-          else
-            res << elem0
-            @currentBar = SpanBar.new([ tickup(elem0.resources.last), elem1.resources], @ts)
-          end
-        else
-          raise "Unknown or invalid type for secondary simple SpanBar #{elem1}"
-        end
-      else
-        raise "Unknown or invalid type for primary simple SpanBar #{elem0}"
       end
-    end
 
-    res.each {|x| @spanBars << x }
+      res.each {|x| @spanBars << x }
+    end # end limitMon
     return res.empty? ? false : res
   end
 
@@ -309,7 +321,7 @@ class SpanBarProcessor
 
       end
     end
-      @recentBar = @spanBars.last
+    @recentBar = @spanBars.last
 
     if @bullish
       oldbull = @bullish[:status]
@@ -364,9 +376,9 @@ class SpanBarProcessor
     else
       result.map! do |bar|
         if [:support, :resistance].include? bar[:status]
-          [ bar[bar[:status]][0], bar[bar[:status]][1], (bar[:bullish].nil? ? :bearish : :bullish), bar[:status] ]
+          [ bar[bar[:status]][0], bar[bar[:status]][1], 0, (bar[:bullish].nil? ? :bearish : :bullish), nil, nil, bar[:status], bar[:counter] ]
         else
-          [ bar[:tick][0], bar[:tick][1], (bar[:bullish].nil? ? :bearish : :bullish), bar[:status] ]
+          [ bar[:tick][0], bar[:tick][1], 0, (bar[:bullish].nil? ? :bearish : :bullish), nil, nil, bar[:status] ]
         end
       end
     end
