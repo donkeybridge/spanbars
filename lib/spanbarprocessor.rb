@@ -259,7 +259,7 @@ class SpanBarProcessor
             @bearish[:support]  = [ peak[0], peak[1], false]
             @bearish[:status]   = :support
             @bearish[:counter]  = 0
-          elsif peak[1] <= @bearish[:support][1] and (@bearish[:resistance][2] or @bearish[:counter] == 0)
+          elsif peak[1] <= @bearish[:support][1] and (@bearish[:counter] == 0 or @bearish[:resistance][2])
             puts "  bearish support += 1" if debug
             @bearish[:support]  = [ peak[0], peak[1], true ]
             @bearish[:status]   = :support
@@ -279,7 +279,7 @@ class SpanBarProcessor
             @bullish[:support] = [ peak[0], peak[1], false]
             @bullish[:status]  = :support
             @bullish[:counter] = 0
-          elsif peak[1] >= @bullish[:support][1] and (@bullish[:resistance][2] or @bullish[:counter] == 0)  
+          elsif peak[1] >= @bullish[:support][1] and (@bullish[:counter] == 0 or @bullish[:resistance][2])
             puts "  bullish support += 1" if debug
             @bullish[:support] = [ peak[0], peak[1], true ]
             @bullish[:status]  = :support  
@@ -338,7 +338,10 @@ class SpanBarProcessor
         elsif p > @bullish[:resistance][1]
           @bullish[:status]  = :trailing
           @bullish[:set]     = t
-        else
+        elsif @bullish[:support][0] < @bullish[:resistance][0] 
+          @bullish[:status]  = :waiting
+          @bullish.delete(:set)
+        else 
           @bullish[:status]  = :gathering
           @bullish.delete(:set)
         end
@@ -362,6 +365,9 @@ class SpanBarProcessor
         elsif p < @bearish[:resistance][1]
           @bearish[:status]  = :trailing
           @bearish[:set]     = t
+        elsif @bearish[:support][0] < @bearish[:resistance][0]
+          @bearish[:status]  = :waiting
+          @bearish.delete(:set)
         else
           @bearish[:status]  = :gathering
           @bearish.delete(:set)
