@@ -27,6 +27,7 @@ op.boolean '--human'    , "Define human output",                   default: fals
 op.boolean '--intraday' , "Strip date portion (affects --human only)", default: false
 op.integer '--grace'    , "Set <grace> ticks for trend check, default: 0", default: 0
 op.boolean '--help'     , "Print this help", default: false
+op.integer '--timestamp', "Use data before timestamp", default: Time.now.to_i * 1000
 op.boolean '--both'     , "Returns both simple and strict bars (overrides --simple)",   default: false
 op.integer '--time'     , "The column in CSV providing the timestamp, defaults to the first", default: 0
 op.integer '--value'    , "The column in CSV providing the value, defaults to the second", default: 1
@@ -65,11 +66,12 @@ else
   unless opts.ohlc?
     s = SpanBarProcessor.new(opts)
     while csv = STDIN.gets
-      line   = CSV.parse(csv.chomp).flatten
+      line   = CSV.parse(csv.chomp, converters: :all).flatten
       if opts[:symbol] 
         sym = line.shift
         next unless sym == opts[:symbol]
       end
+      next if line[opts[:time]] > opts[:timestamp]
       result = s.add(line[opts[:time]].to_i, line[opts[:value]].to_f, line[opts[:volume]].to_i)
       if result
         if opts[:human] 

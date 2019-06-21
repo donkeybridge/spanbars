@@ -26,9 +26,12 @@ op.boolean '--human'    , "Define human output",                   default: true
 op.boolean '--json'     , "Define JSON output"
 op.boolean '--help'     , "Print this help", default: false
 op.integer '--time'     , "The column in CSV providing the timestamp, defaults to the first", default: 0
-op.string '--format'    , "defaults to '%1.2f'", default: "%1.2f"
+op.integer '--single'   , default: 0
+op.string  '--format'   , "defaults to '%1.2f'", default: "%1.2f"
 op.integer '--value'    , "The column in CSV providing the value, defaults to the second", default: 1
 op.integer '--volume'   , "The column in CSV providing the volume, default to the third",  default: 2
+op.integer '--timestamp', "The maximum timestamp to process"
+op.boolean '--collection', "Prints the entire collection as json", default: false
 op.separator "" 
 op.separator "#{"Please note:".light_white} spancluster relies on STDIN data, e.g. "
 op.separator "    #{"$".light_white} cat /tmp/timeseries.csv | spancluster --ticksize 0.25"
@@ -55,27 +58,37 @@ unless STDIN.tty?
   counter = 0 
   while csv = STDIN.gets
     counter += 1
-    puts counter if counter % 500 == 0 and not opts[:json]
+    print "\r#{counter}" if counter % 500 == 0 and not opts[:json]
     line   = CSV.parse(csv.chomp, converters: :all).flatten
     #puts "processing line #{line}"
     if opts[:symbol] 
       sym = line.shift
       next unless sym == opts[:symbol]
     end
-    result = s.add({time:line[0], price:line[1]})
-    if result
-      if opts[:human] 
-        # result.each {|r| puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red } 
-        puts "Human output not implemented yet"
-      else # CSV output
-    #    result.each {|r| CSV {|out| out << (opts[:symbol] ? r.to_a.unshift(opts[:symbol]) : r.to_a)  } }
-      end
+    if opts[:timestamp]
+      next if line[0] > opts[:timestamp]
     end
+    result = s.add({time:line[0], price:line[1]})
+    #if result
+    #  if opts[:human] 
+    #    # result.each {|r| puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red } 
+    #    puts "Human output not implemented yet"
+    #  else # CSV output
+    #    result.each {|r| CSV {|out| out << (opts[:symbol] ? r.to_a.unshift(opts[:symbol]) : r.to_a)  } }
+    #  end
+    #end
   end
-  if opts[:json]
-    puts s.json_clusters
+  puts "" unless opts[:json]
+  if opts[:collection]
+    puts    s.print_collection
+  elsif opts[:json]
+    puts s.json_clusters(opts[:single])
   else
-    puts s.print_clusters
+    if opts[:single] == 0
+      puts s.print_clusters
+    else
+      s.print_single(opts[:single])
+    end
   end
 else
   puts op.to_s

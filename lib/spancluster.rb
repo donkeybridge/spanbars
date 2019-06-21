@@ -32,7 +32,7 @@ class SpanCluster
 
     @symbol   = opts[:symbol] 
     if EzConfig
-      @ticksize = opts[:ticksize].nil? ? (@symbol.nil? ? 1.0 : EzConfig::read_symbol_config(@symbol)["ticksize"] ) : opts[:ticksize]
+      @ticksize = opts[:ticksize].nil? ? (@symbol.nil? ? 1.0 : EzConfig::read_ez_symbolconfig(@symbol)["ticksize"] ) : opts[:ticksize]
     else
       @ticksize = opts[:ticksize].nil? ? 1.0 : opts[:ticksize]
     end
@@ -137,17 +137,31 @@ class SpanCluster
     #puts self.print_collection
   end
 
-  def reduce
+  def reduce(parallel = 8)
+    check_parallel = lambda do |l, c|
+      parallel.times do |i|
+        return false if c[:peaks][-1 - i].nil? or c[:peaks][-1 - i][:open] != l[:peaks][-1 - i][:open] 
+      end
+      return true
+    end
+
     res = [ { start: @min_size, end: @min_size, value: @collection[@min_size] } ] #, bulls: [], bears: [] } ]
     @min_size.upto @max_size do |size|
       last = res.last[:value]
       curr = @collection[size]
-      next if curr[:peaks][-4].nil? or curr[:peaks][-3].nil? or curr[:peaks][-2].nil? or
-              last[:peaks][-2].nil? or last[:peaks][-3].nil? or last[:peaks][-4].nil? 
-      if last[:peaks][-1][:open]  == curr[:peaks][-1][:open]  and
-         last[:peaks][-2][:open]  == curr[:peaks][-2][:open]  and
-         last[:peaks][-3][:open]  == curr[:peaks][-3][:open]  and
-         last[:peaks][-4][:open]  == curr[:peaks][-4][:open]  
+
+      # check if curr has as many last peaks as last. if not, decrease parallel until parallel is 1
+      parallel = last[:peaks].size if last[:peaks].size < parallel
+      #next if curr[:peaks][-4].nil? or curr[:peaks][-3].nil? or curr[:peaks][-2].nil? or
+      #        last[:peaks][-4].nil? or last[:peaks][-3].nil? or last[:peaks][-2].nil? 
+      
+      # now check if the last <parallel> parts of curr and last are equal---
+      if check_parallel.call(last, curr)
+      
+      #if last[:peaks][-1][:open]  == curr[:peaks][-1][:open]  and
+      #   last[:peaks][-2][:open]  == curr[:peaks][-2][:open]  and
+      #   last[:peaks][-3][:open]  == curr[:peaks][-3][:open]  and
+      #   last[:peaks][-4][:open]  == curr[:peaks][-4][:open]  
         res.last[:end]    = size
       else
         res <<  { start: size, end: size, value: curr } 
@@ -158,20 +172,18 @@ class SpanCluster
   end
 
   def print_single(x)
-    line = @collection[x]
+    line = @collection[x][:peaks].reverse
     return "" if line.nil?
-    to_tod = lambda{|t| now = (t / 1000) % 86400; "#{"%02d" % (now/3600)}:#{"%02d" % ((now%3600)/60)}:#{"%02d" % (now%60)}" }
-    ppp = lambda do |l,n|
-      l[:peaks][n].nil? ? "      " : "#{[:up,"up"].include?(l[:peaks][n][:dir]) ? "\\" : "/"
-                                         }#{@format % l[:peaks][n][:open][:price]
-                                         }#{[:up,"up"].include?(l[:peaks][n][:dir]) ? "/" : "\\"}"
+    to_tod = lambda{|t| Time.at(t / 1000).strftime("%H:%M:%S") }
+    ppp    = lambda{|d, t, p| "#{d}\t#{to_tod.call(t)}\t#{p}\t\t(#{t})" }
+    #puts ppp.call(line.first[:dir] == :up ? :down : :up, line.first[:open][:time], line.first[:open][:price])
+    line.each do |peak|
+      puts ppp.call(peak[:dir], peak[:close][:time], peak[:close][:price])
     end
-    "\t#{x}:\t#{ppp.(line,-4)}\t#{ppp.(line,-3)}\t#{ppp.(line,-2)}\t#{ppp.(line,-1)
-     }\tE: #{@format % line[:peaks][-1][:close][:price]
-     }\t#{line.bull}\t#{line.bear}"
-   end
+  end
 
-  def clusters( min = 2 )
+
+  def clusters( min = 1 )
     res = [] 
     self.reduce.each do |line|
       if (not line[:value][:peaks][-2].nil?) and line[:end] - line[:start] >= min
@@ -181,8 +193,16 @@ class SpanCluster
     res
   end
 
-  def json_clusters
-    puts self.clusters.to_json
+  def json_clusters(single = 0)
+    if single == 0 
+      self.clusters.to_json
+    else
+      first = @collection[single][:peaks].first
+      first = [ first[:open][:time], first[:open][:price], 0, first[:dir] == :up ? :down : :up ]
+      rest  = @collection[single][:peaks].map{|x| [ x[:close][:time], x[:close][:price], 0, x[:dir] ] }
+      rest.prepend first
+      rest.reverse.to_json
+    end
   end
 
   def print_clusters
