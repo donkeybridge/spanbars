@@ -7,16 +7,16 @@ Feature: Initializiation of SpanBarProcessor
     Given a SpanBarProcessor is initialized with "3", "3"
     Then <instance_var> should be set to <value>
     Examples: 
-      | instance_var | value | 
-      | @ticks       |  []   |
-      | @limit       |  9    |
-      | @simpleMax   |  0    |
-      | @simpleMin   |  Float::INFINITY | 
-      | @simpleBar   |  []   | 
-      | @simpleBars  |  []   | 
-      | @intraday    | false |
-      | @both        | false |
-      | @simple      | false |
+      | instance_var  | value | 
+      | @ticks        |  []   |
+      | @limit        |  9    |
+      | @simple_max   |  0    |
+      | @simple_min   |  Float::INFINITY | 
+      | @simple_bar   |  []   | 
+      | @simple_bars  |  []   | 
+      | @intraday     | false |
+      | @both         | false |
+      | @simple       | false |
 
     #Scenario Outline: Testing methods and attr
     #Given a SpanBarProcessor is initialized with "4", "3"
