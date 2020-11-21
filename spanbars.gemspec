@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = "spanbars"
-  s.version     = "0.3.0.2"
-  s.date        = "2019-06-10"
+  s.version     = "0.3.9.0"
+  s.date        = "2020-11-21"
   s.summary     = "Tiny tool to process input CSV data as timeseries to span bars"
   s.description = "Tiny tool to process input CSV data as timeseries to span bars "
   s.authors     = [ "Benjamin L. Tischendorf" ]
@@ -21,12 +21,12 @@ Gem::Specification.new do |s|
   s.require_paths = ['lib']
 
   # Dependencies
-  # s.add_dependency 'bundler', '>= 1.1.16'
-  s.add_dependency 'slop', '~> 4.6'
-  s.add_dependency 'csv',  '~> 3.0'
+  s.add_dependency 'bundler', '>= 1.1.16'
+  s.add_dependency 'slop', '~> 4.8'
+  s.add_dependency 'csv',  '~> 3.1'
   s.add_dependency 'colorize', '~> 0.8'
-  s.add_development_dependency 'rspec','~>3.6'
-  s.add_development_dependency 'cucumber','~>3.1'  
+  s.add_development_dependency 'rspec','~>3.10'
+  s.add_development_dependency 'cucumber','~>5.2'  
   s.add_development_dependency 'yard', '~>0.9'
 end
 
