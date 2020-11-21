@@ -1,3 +1,6 @@
+## 0.3.10 (November 21, 2020)
+
+
 ## 0.1.0 (November 21, 2020)
   - Add VERSION and CHANGELOG.md files, Bump version to v0.1.0.
   - lib/trendstate: moved .check_trend_state into separate file
