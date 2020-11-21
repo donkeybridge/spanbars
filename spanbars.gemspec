@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = "spanbars"
-  s.version     = "0.3.9.0"
+  s.version     = File.read("#{__dir__}/VERSION").chomp
   s.date        = "2020-11-21"
   s.summary     = "Tiny tool to process input CSV data as timeseries to span bars"
   s.description = "Tiny tool to process input CSV data as timeseries to span bars "
