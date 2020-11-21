@@ -1,13 +1,11 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
-SPANCLUSTER_EXECUTABLE_PATH = File.absolute_path( File.dirname( File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__ ) ) 
-
-require SPANCLUSTER_EXECUTABLE_PATH + '/../lib/spancluster.rb'
-
+require "#{__dir__}/../lib/spancluster.rb"
 
 # prepare processing of incoming control commands (e.g. Ctrl-C)
-Signal.trap("TERM") { local_interrupt }
-Signal.trap("INT")  { local_interrupt }
+Signal.trap('TERM') { local_interrupt }
+Signal.trap('INT')  { local_interrupt }
 
 def local_interrupt
   exit
@@ -16,30 +14,31 @@ end
 # prepare command line parser and help text
 
 op = Slop::Options.new
-op.banner = "\n#{"Usage:".light_white} spanbars [options]"
-op.separator "" 
-op.float   '--ticksize' , "Set ticksize for processing"
-op.string  '--symbol'   , "If set, uses first column of CSV as symbol description"
-op.integer '--minspan'  , "Set minimum span to work on, defaults to 5", default: 5
-op.integer '--maxpeaks' , "Set maximum peaks to carry in each span, set to 0 for infinite, defaults to 0", default: 0
-op.boolean '--human'    , "Define human output",                   default: true
-op.boolean '--json'     , "Define JSON output"
-op.boolean '--help'     , "Print this help", default: false
-op.integer '--time'     , "The column in CSV providing the timestamp, defaults to the first", default: 0
-op.integer '--single'   , default: 0
-op.string  '--format'   , "defaults to '%1.2f'", default: "%1.2f"
-op.integer '--value'    , "The column in CSV providing the value, defaults to the second", default: 1
-op.integer '--volume'   , "The column in CSV providing the volume, default to the third",  default: 2
-op.integer '--timestamp', "The maximum timestamp to process"
-op.boolean '--collection', "Prints the entire collection as json", default: false
-op.separator "" 
-op.separator "#{"Please note:".light_white} spancluster relies on STDIN data, e.g. "
-op.separator "    #{"$".light_white} cat /tmp/timeseries.csv | spancluster --ticksize 0.25"
-op.separator ""
+op.banner = "\n#{'Usage:'.light_white} spanbars [options]"
+op.separator ''
+op.float   '--ticksize', 'Set ticksize for processing'
+op.string  '--symbol', 'If set, uses first column of CSV as symbol description'
+op.integer '--minspan', 'Set minimum span to work on, defaults to 5', default: 5
+op.integer '--maxpeaks', 'Set maximum peaks to carry in each span, set to 0 for infinite, defaults to 0', default: 0
+op.boolean '--human', 'Define human output', default: true
+op.boolean '--json', 'Define JSON output'
+op.boolean '--help', 'Print this help', default: false
+op.integer '--time', 'The column in CSV providing the timestamp, defaults to the first', default: 0
+op.integer '--single', default: 0
+op.string  '--format', "defaults to '%1.2f'", default: '%1.2f'
+op.integer '--value', 'The column in CSV providing the value, defaults to the second', default: 1
+op.integer '--volume', 'The column in CSV providing the volume, default to the third', default: 2
+op.integer '--timestamp', 'The maximum timestamp to process'
+op.boolean '--collection', 'Prints the entire collection as json', default: false
+op.array   '--rth', default: []
+op.separator ''
+op.separator "#{'Please note:'.light_white} spancluster relies on STDIN data, e.g. "
+op.separator "    #{'$'.light_white} cat /tmp/timeseries.csv | spancluster --ticksize 0.25"
+op.separator ''
 
 optparser = Slop::Parser.new(op)
 
-# print help upon unparsable commandline options
+# print help upon unparseable commandline options
 begin
   opts = optparser.parse(ARGV)
 rescue StandardError => e
@@ -48,53 +47,55 @@ rescue StandardError => e
   exit
 end
 
-if opts.help? 
+if opts.help?
   puts op.to_s
   exit
 end
 
-unless STDIN.tty? 
+if $stdin.tty?
+  puts op.to_s
+else
+  # rubocop:disable Metrics/BlockNesting
   s = SpanCluster.new(opts)
-  counter = 0 
-  while csv = STDIN.gets
+  counter = 0
+  while (csv = $stdin.gets)
     counter += 1
-    print "\r#{counter}" if counter % 500 == 0 and not opts[:json]
-    line   = CSV.parse(csv.chomp, converters: :all).flatten
-    #puts "processing line #{line}"
-    if opts[:symbol] 
+    print "\r#{counter}" if (counter % 500).zero? && (not opts[:json])
+    line = CSV.parse(csv.chomp, converters: :all).flatten
+    # puts "processing line #{line}"
+    if opts[:symbol]
       sym = line.shift
       next unless sym == opts[:symbol]
+
     end
-    if opts[:timestamp]
-      next if line[0] > opts[:timestamp]
+    next if opts[:timestamp] && (line[0] > opts[:timestamp])
+
+    unless opts[:rth].empty?
+      time = Time.at(line[0] / 1000).strftime('%H:%M:%S')
+      next if (time < opts[:rth][0]) || (time > opts[:rth][1])
+
     end
-    result = s.add({time:line[0], price:line[1]})
-    #if result
-    #  if opts[:human] 
-    #    # result.each {|r| puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red } 
+    s.add({ time: line[0], price: line[1] })
+    # result = s.add({ time: line[0], price: line[1] })
+    # if result
+    #  if opts[:human]
+    #    # result.each {|r| puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red }
     #    puts "Human output not implemented yet"
     #  else # CSV output
     #    result.each {|r| CSV {|out| out << (opts[:symbol] ? r.to_a.unshift(opts[:symbol]) : r.to_a)  } }
     #  end
-    #end
+    # end
   end
-  puts "" unless opts[:json]
+  puts '' unless opts[:json]
+
   if opts[:collection]
     puts    s.print_collection
   elsif opts[:json]
     puts s.json_clusters(opts[:single])
+  elsif (opts[:single]).zero?
+    puts s.print_clusters
   else
-    if opts[:single] == 0
-      puts s.print_clusters
-    else
-      s.print_single(opts[:single])
-    end
+    s.print_single(opts[:single])
   end
-else
-  puts op.to_s
+  # rubocop:enable Metrics/BlockNesting
 end
-
-
-
-
-

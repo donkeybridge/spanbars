@@ -1,13 +1,11 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
-SPANBAR_EXECUTABLE_PATH = File.absolute_path( File.dirname( File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__ ) ) 
-
-require SPANBAR_EXECUTABLE_PATH + '/../lib/spanbars.rb'
-
+require "#{__dir__}/../lib/spanbars.rb"
 
 # prepare processing of incoming control commands (e.g. Ctrl-C)
-Signal.trap("TERM") { local_interrupt }
-Signal.trap("INT")  { local_interrupt }
+Signal.trap('TERM') { local_interrupt }
+Signal.trap('INT')  { local_interrupt }
 
 def local_interrupt
   exit
@@ -16,28 +14,28 @@ end
 # prepare command line parser and help text
 
 op = Slop::Options.new
-op.banner = "\n#{"Usage:".light_white} spanbars [options]"
-op.separator "" 
-op.bool    '--simple'   , "Disable processing of strict StanBars", default: false
-op.float   '--ticksize' , "Set ticksize for processing",           default: 1.0
-op.string  '--symbol'   , "If set, uses first column of CSV as symbol description"
-op.integer '--span'     , "Set span for processing",               default: 10
-op.boolean  '--ohlc'     , "Define OHLC input file instead of timeseries (overrides --simple and --both)", default: false
-op.boolean '--human'    , "Define human output",                   default: false
-op.boolean '--intraday' , "Strip date portion (affects --human only)", default: false
-op.integer '--grace'    , "Set <grace> ticks for trend check, default: 0", default: 0
-op.boolean '--help'     , "Print this help", default: false
-op.integer '--timestamp', "Use data before timestamp", default: Time.now.to_i * 1000
-op.boolean '--both'     , "Returns both simple and strict bars (overrides --simple)",   default: false
-op.integer '--time'     , "The column in CSV providing the timestamp, defaults to the first", default: 0
-op.integer '--value'    , "The column in CSV providing the value, defaults to the second", default: 1
-op.integer '--volume'   , "The column in CSV providing the volume, default to the third",  default: 2
-op.boolean '--bullish'  , "Print support / resistance / status information", default: false
-op.boolean '--bearish'  , "Print support / resistance / status information", default: false
-op.separator "" 
-op.separator "#{"Please note:".light_white} spanbars relies on STDIN data, e.g. "
-op.separator "    #{"$".light_white} cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1"
-op.separator ""
+op.banner = "\n#{'Usage:'.light_white} spanbars [options]"
+op.separator ''
+op.bool    '--simple', 'Disable processing of strict StanBars', default: false
+op.float   '--ticksize', 'Set ticksize for processing', default: 1.0
+op.string  '--symbol', 'If set, uses first column of CSV as symbol description'
+op.integer '--span', 'Set span for processing', default: 10
+op.boolean '--ohlc', 'Define OHLC input file instead of timeseries (overrides --simple and --both)', default: false
+op.boolean '--human', 'Define human output', default: false
+op.boolean '--intraday', 'Strip date portion (affects --human only)', default: false
+op.integer '--grace', 'Set <grace> ticks for trend check, default: 0', default: 0
+op.boolean '--help', 'Print this help', default: false
+op.integer '--timestamp', 'Use data before timestamp', default: Time.now.to_i * 1000
+op.boolean '--both', 'Returns both simple and strict bars (overrides --simple)', default: false
+op.integer '--time', 'The column in CSV providing the timestamp, defaults to the first', default: 0
+op.integer '--value', 'The column in CSV providing the value, defaults to the second', default: 1
+op.integer '--volume', 'The column in CSV providing the volume, default to the third', default: 2
+op.boolean '--bullish', 'Print support / resistance / status information', default: false
+op.boolean '--bearish', 'Print support / resistance / status information', default: false
+op.separator ''
+op.separator "#{'Please note:'.light_white} spanbars relies on STDIN data, e.g. "
+op.separator "    #{'$'.light_white} cat /tmp/timeseries.csv | spanbars --simple --span 5 --ticksize 0.1"
+op.separator ''
 
 optparser = Slop::Parser.new(op)
 
@@ -50,88 +48,84 @@ rescue StandardError => e
   exit
 end
 
-if opts.help? 
+if opts.help?
   puts op.to_s
   exit
 end
 
-
-if STDIN.tty? 
+if $stdin.tty?
   puts op.to_s
+elsif opts.ohlc? # if ohlc is given
+  # rubocop:disable Metrics/BlockNesting
+  data = []
+  while (csv = $stdin.gets)
+    data << CSV.parse(csv.chomp).flatten
+  end
+  opts = opts.to_hash
+  opts.delete(:simple)
+  opts.delete(:both)
+  high_opts = opts.dup
+  high_opts.delete(:bullish)
+  high_opts.delete(:bearish)
+  high_opts[:span] = (opts[:span] / 2.0).floor.to_i
+  high_proc = SpanBarProcessor.new(high_opts)
+  low_proc  = SpanBarProcessor.new(high_opts)
+  fin_proc  = SpanBarProcessor.new(opts)
+  data.each do |d|
+    high_proc.add(timestamp: d[0].to_i, value: d[2].to_f)
+    low_proc.add(timestamp: d[0].to_i, value: d[3].to_f)
+  end
+  highs = high_proc.span_bars.map { |bar| bar.type.to_s.downcase == 'up' ? bar.high_val : nil }
+  lows = low_proc.span_bars.map { |bar| bar.type.to_s.downcase == 'down' ? nil : bar.low_val }
+  res = [highs, lows].flatten.compact
+  res.sort! { |a, b| a[:t] <=> b[:t] }
+  container = []
+  res.each do |peak|
+    result = fin_proc.add timestamp: peak[:t], value: peak[:p]
+    result&.each { |x| container << x }
+  end
+  if opts[:human]
+    container.each do |r|
+      if r.is_a? Spanbar
+        r.set_intraday if opts[:intraday]
+        puts(%i[up bottom].include?(r.type)) ? r.to_human.to_s.green : r.to_human.to_s.red
+      else
+        puts r.to_s.light_blue.to_s
+      end
+    end
+  else # CSV output
+    container.each { |r| CSV { |out| out << r.to_a } }
+  end
 else
-  if opts[:symbol] and EzConfig
-    symbolconfig = EzConfig::read_ez_symbolconfig(opts[:symbol]) 
-    opts[:ticksize] = symbolconfig["ticksize"] 
-  end
-  unless opts.ohlc?
-    s = SpanBarProcessor.new(opts)
-    while csv = STDIN.gets
-      line   = CSV.parse(csv.chomp, converters: :all).flatten
-      if opts[:symbol] 
-        sym = line.shift
-        next unless sym == opts[:symbol]
-      end
-      next if line[opts[:time]] > opts[:timestamp]
-      result = s.add(line[opts[:time]].to_i, line[opts[:value]].to_f, line[opts[:volume]].to_i)
-      if result
-        if opts[:human] 
-          result.each do |r| 
-            if r.is_a? SpanBar
-              r.set_intraday if opts[:intraday]
-              puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red 
-            else
-              puts "#{r.to_s.light_blue}"
-            end
+  s = SpanBarProcessor.new(**opts)
+  while (csv = $stdin.gets)
+    line = CSV.parse(csv.chomp, converters: :all).flatten
+    if opts[:symbol]
+      sym = line.shift
+      next unless sym == opts[:symbol]
+    end
+    next if line[opts[:time]] > opts[:timestamp]
+
+    result = s.add(timestamp: line[opts[:time]].to_i, value: line[opts[:value]].to_f)
+    if result
+      if opts[:human]
+        result.each do |r|
+          if r.is_a? SpanBar
+            r.set_intraday if opts[:intraday]
+            puts(%i[up bottom].include?(r.type)) ? r.to_human.to_s.green : r.to_human.to_s.red
+          else
+            puts r.to_s.light_blue.to_s
           end
-        else # CSV output
-          result.each do |r| 
-            CSV do |out| 
-              out << (opts[:symbol] ? r.to_a.unshift(opts[:symbol]) : r.to_a) 
-            end
+        end
+      else # CSV output
+        result.each do |r|
+          CSV do |out|
+            out << (opts[:symbol] ? r.to_a.unshift(opts[:symbol]) : r.to_a)
           end
         end
       end
     end
-    exit
-  else # if ohlc is given
-    data = [ ] 
-    data << CSV.parse(csv.chomp).flatten while csv = STDIN.gets
-    opts = opts.to_hash
-    opts.delete(:simple)
-    opts.delete(:both)
-    highOpts = opts.dup
-    highOpts.delete(:bullish)
-    highOpts.delete(:bearish)
-    highOpts[:span] = (opts[:span] / 2.0).floor.to_i
-    highProc = SpanBarProcessor.new(highOpts)
-    lowProc  = SpanBarProcessor.new(highOpts)
-    finProc  = SpanBarProcessor.new(opts)
-    data.each do |d| 
-      highProc.add(d[0].to_i, d[2].to_f, d[5].to_i)
-      lowProc. add(d[0].to_i, d[3].to_f, d[5].to_i)
-    end
-    highs = highProc.spanBars.map{|bar| bar.type.to_s.downcase == "up"   ? bar.highval : nil } 
-    lows  =  lowProc.spanBars.map{|bar| bar.type.to_s.downcase == "down" ? nil :  bar.lowval } 
-    res = [ highs, lows ].flatten.compact
-    res.sort!{|a,b| a[:t] <=> b[:t]}
-    container = [ ]
-    res.each {|peak| result = finProc.add peak[:t],peak[:p], peak[:v]; result.each{|x| container << x} if result }
-    if opts[:human]
-      container.each do |r| 
-        if r.is_a? Spanbar
-          r.set_intraday if opts[:intraday]
-          puts ([:up, :bottom].include? r.type) ? "#{r.to_human}".green : "#{r.to_human}".red 
-        else
-          puts "#{r.to_s.light_blue}" 
-        end
-      end
-    else # CSV output
-      container.each {|r| CSV{|out| out << r.to_a  } }  
-    end
   end
+  # rubocop:enable Metrics/BlockNesting
+  exit
 end
-
-
-
-
-
